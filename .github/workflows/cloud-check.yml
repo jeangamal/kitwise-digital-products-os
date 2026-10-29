@@ -1,0 +1,32 @@
+name: Kitwise cloud check
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/cloud-check.yml
+
+permissions: {}
+
+jobs:
+  cloud-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Verify hosted execution
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import datetime
+          import os
+          import platform
+
+          assert os.environ.get("GITHUB_ACTIONS") == "true"
+          assert platform.system() == "Linux"
+          completed = datetime.datetime.now(datetime.timezone.utc).isoformat()
+          print(f"Kitwise cloud check passed at {completed}")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("## Kitwise cloud check passed\n\n")
+              summary.write(f"Completed on GitHub's hosted Linux runner at {completed}.\n\n")
+              summary.write("This test used no API keys, image files, external services, or stored artifacts.\n")
+          PY
