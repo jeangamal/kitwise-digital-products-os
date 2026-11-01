@@ -24,12 +24,12 @@
 - The deployment workflow runs only when you manually select it. It is not triggered by pull requests.
 - It keeps Cloudflare credentials only in GitHub Actions secrets; research and commentary remain inside your own D1 account.
 - The company doesn't publish, transfer stock, spend money, create paid resources, approve products, or expose private research over the public Worker URL.
-- Workers AI free use is quota-limited and can fail temporarily. The model selected for this proof-of-concept is `@cf/zai-org/glm-4.7-flash`. One AI invocation per UTC day maximum.
-- The source is Hacker News Algolia *headlines*, used as **weak discussion signals only**, never sales, demand, or purchasing evidence. The report explicitly lists missing validation data.
+- Workers AI free use is quota-limited and can fail temporarily. The model selected for this proof-of-concept is `@cf/zai-org/glm-4.7-flash`. One market-research AI invocation per UTC day maximum.
+- The v0.3 market-research source is Shutterstock's public trend page. Observed keyword, qualitative demand, growth and matching-library results are **not** actual orders or a validated stock buyer-demand gap. Historical v0.2 Hacker News pilot rows are preserved separately.
 - If no credible sources are available or AI fails, the run is marked `needs_attention` rather than pretending it completed.
 - If more than one code contributor uses the same Cloudflare account, keep the account token restricted and rotate it if exposed.
 - The new Chairman Dashboard at `/dashboard` offers protected read-only D1 reporting and a bounded manual research trigger. Without an independently generated 64-character secret installed as a Cloudflare Worker secret, its `/api/*` endpoints fail closed. See [Chairman Dashboard setup](CHAIRMAN_DASHBOARD.md).
 
 ## Follow-on implementation
 
-After one verified live run: add independent marketplaces, carefully validated market indicators, human approval workflow, private Chairman dashboard and explicit operational scaling limits. Review free-usage statistics before increasing research cadence.
+After a verified live v0.3 run: add other marketplaces via authorized sources, compare exact market competitor formats and sales evidence, and enhance the existing private Chairman dashboard with approval gates and production operations. Review free-usage statistics before increasing research cadence.

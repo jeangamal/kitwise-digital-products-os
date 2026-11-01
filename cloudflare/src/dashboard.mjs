@@ -72,14 +72,14 @@ td{color:#c9d6e8}td small{color:#889bb5;display:block}
   <div class="brand"><div class="brand-mark">K</div><div><h1>KITWISE</h1><small>COMPANY OS</small></div></div>
   <div><p class="side-label">Chairman Office</p><nav class="nav" aria-label="Dashboard sections">
     <button type="button" class="active" data-view="overview">Overview</button>
-    <button type="button" data-view="research">Research intelligence</button>
+    <button type="button" data-view="research">Microstock Intelligence</button>
     <button type="button" data-view="departments">Departments</button>
   </nav></div>
   <div class="sidebar-bottom"><strong>Governance mode</strong>Research only. No automated spending, publishing or company-scale decisions.</div>
 </aside>
 <main class="workspace">
   <header class="top">
-    <div><div class="eyebrow">KITWISE / CHAIRMAN OFFICE</div><h2>Company Command Center</h2><p>Monitor the research pilot and its evidence. Business KPIs remain unverified.</p></div>
+    <div><div class="eyebrow">KITWISE / CHAIRMAN OFFICE</div><h2>Company Command Center</h2><p>Track emerging stock-image opportunities and upcoming buying seasons. No sales predictions without real evidence.</p></div>
     <div class="header-right"><span class="status-pill"><span class="dot"></span>Cloud pilot</span><button id="lock" class="secondary-btn hidden" type="button">Lock</button></div>
   </header>
   <section id="login" class="gate card" aria-labelledby="login-title">
@@ -94,21 +94,31 @@ td{color:#c9d6e8}td small{color:#889bb5;display:block}
     <div id="view-overview" class="view">
       <div class="grid">
         <div class="metric"><small>Research runs (recent)</small><strong id="runs-count">—</strong><span>Latest 10 recorded runs</span></div>
-        <div class="metric"><small>Latest source signals</small><strong id="signal-count">—</strong><span>HN headlines, not sales evidence</span></div>
+        <div class="metric"><small>Market keywords checked</small><strong id="signal-count">—</strong><span>Shutterstock search-trend observations</span></div>
         <div class="metric"><small>Verified net profit</small><strong>—</strong><span>Finance integration pending</span></div>
         <div class="metric"><small>Products selling</small><strong>—</strong><span>Marketplace data not connected</span></div>
       </div>
-      <div class="notice"><strong>Research limitations.</strong> Hacker News headlines are only weak discussion signals. Neither AI interpretations nor the number of sources establish market demand, sales or profitability.</div>
+      <div class="notice"><strong>Market research limitations.</strong> Shutterstock search growth, qualitative demand, and matching result counts do not establish actual sales, downloads, or a supply-demand gap. Cross-marketplace validation remains pending.</div>
       <div class="two-col">
         <article class="card"><div class="panel-top"><h4>Latest research cycle</h4><span id="latest-state" class="badge">Awaiting data</span></div><div id="latest-day" class="big-status">No run recorded</div><p id="latest-explain">The first scheduled run may not have occurred yet.</p><div class="panel-top panel-gap"><span class="dim" id="last-updated">Not yet available</span></div><button id="trigger" class="primary-btn" type="button">Run research now</button><div id="trigger-message" class="error" role="status"></div></article>
-        <article class="card"><div class="panel-top"><h4>AI executive interpretation</h4><span class="badge">Unverified hypothesis</span></div><div id="ai-summary" class="prose">No AI research interpretation is recorded yet.</div></article>
+        <article class="card"><div class="panel-top"><h4>AI Microstock Production Brief</h4><span class="badge">Unverified hypothesis</span></div><div id="ai-summary" class="prose">No AI research interpretation is recorded yet.</div></article>
       </div>
     </div>
+    <section aria-label="Commercial opportunity shortlist">
+      <h3 class="section-title">Commercial Screening Shortlist <span class="dim">Not validated sales opportunities</span></h3>
+      <div class="card tbl-wrap"><table><thead><tr><th>Stock keyword</th><th>Demand</th><th>Growth</th><th>Matching results</th><th>Season / deadline</th><th>Next action</th></tr></thead>
+        <tbody id="shortlist-table"><tr><td colspan="6">No observed market opportunities yet.</td></tr></tbody>
+      </table></div>
+      <h3 class="section-title">Upcoming Buying Seasons <span class="dim">Plan and upload well before each event</span></h3>
+      <div class="card tbl-wrap"><table><thead><tr><th>Season</th><th>Event date</th><th>Suggested upload by</th><th>Production window</th></tr></thead>
+        <tbody id="season-table"><tr><td colspan="4">No seasonal plan recorded yet.</td></tr></tbody>
+      </table></div>
+    </section>
     <div id="view-research" class="view hidden">
       <h3 class="section-title">Research history</h3>
       <div class="card tbl-wrap"><table><thead><tr><th>UTC day</th><th>Outcome</th><th>Signals</th><th>Reason</th></tr></thead><tbody id="runs-table"><tr><td colspan="4">No research runs recorded.</td></tr></tbody></table></div>
-      <h3 class="section-title">Latest evidence <span class="dim">Source: Hacker News discussions</span></h3>
-      <div class="card tbl-wrap"><table><thead><tr><th>Topic</th><th>Source headline</th><th>Published</th></tr></thead><tbody id="sources-table"><tr><td colspan="3">No sourced evidence recorded.</td></tr></tbody></table></div>
+      <h3 class="section-title">Latest marketplace observations <span class="dim">Source: Shutterstock public trends</span></h3>
+      <div class="card tbl-wrap"><table><thead><tr><th>Keyword</th><th>Observed trend signal</th><th>Checked (UTC)</th></tr></thead><tbody id="sources-table"><tr><td colspan="3">No live microstock evidence recorded.</td></tr></tbody></table></div>
     </div>
     <div id="view-departments" class="view hidden">
       <h3 class="section-title">AI company departments</h3>
@@ -135,19 +145,37 @@ function render(){
   setText("runs-count",runs.length);setText("signal-count",latest?latest.evidence_count:"—");
   badge("latest-state",latest?latest.status:"awaiting_first_run");
   setText("latest-day",latest?latest.day:"No run recorded");
-  setText("latest-explain",latest?(latest.status==="completed"?"Research completed; opportunity validation is still required.":latest.status==="running"?"Research is processing. Refresh to check results.":"This cycle needs attention: "+(latest.error_code||"unknown reason")):"First run is not recorded. You can start one with the button below.");
+  setText("latest-explain",latest?(latest.status==="completed"?"Stock-trend analysis completed; sales and competitor validation is still required.":latest.status==="running"?"Research is processing. Refresh to check results.":"This cycle needs attention: "+(latest.error_code||"unknown reason")):"No microstock research run yet. You can initiate one with the button below.");
   setText("last-updated",latest&&latest.completed_at?"Completed: "+new Date(latest.completed_at).toLocaleString():"No completed run");
   setText("ai-summary",latest&&latest.report&&latest.report.ai_interpretation_unverified?latest.report.ai_interpretation_unverified:"No successful AI interpretation recorded yet.");
   $("trigger").disabled=!r.manual_run_available;
   $("trigger").textContent=r.manual_run_available?"Run research now":"Today’s research already claimed";
+  var shortlist=$("shortlist-table");shortlist.replaceChildren();
+  var shortlistItems=latest&&latest.report&&Array.isArray(latest.report.shortlist)?latest.report.shortlist:[];
+  if(!shortlistItems.length){var emptyS=document.createElement("tr");var es=cell(emptyS,"No shortlisted trend-backed ideas yet.");es.colSpan=6;shortlist.appendChild(emptyS)}
+  shortlistItems.forEach(function(item){
+    var line=document.createElement("tr");
+    cell(line,item.keyword);cell(line,item.demand_label);
+    cell(line,String(item.growth_percent)+"%");
+    cell(line,Number(item.matching_results).toLocaleString());
+    cell(line,item.season?item.season.name+" / "+item.season.suggested_upload_by:"Evergreen / to validate");
+    cell(line,String(item.decision).replace(/_/g," "));shortlist.appendChild(line);
+  });
+  var seasonTable=$("season-table");seasonTable.replaceChildren();
+  var seasons=latest&&latest.report&&Array.isArray(latest.report.season_calendar)?latest.report.season_calendar:[];
+  if(!seasons.length){var emptyE=document.createElement("tr");var e=cell(emptyE,"No upcoming seasons recorded.");e.colSpan=4;seasonTable.appendChild(emptyE)}
+  seasons.forEach(function(item){var line=document.createElement("tr");
+    cell(line,item.name);cell(line,item.date);cell(line,item.suggested_upload_by);
+    cell(line,String(item.production_status).replace(/_/g," "));seasonTable.appendChild(line);
+  });
   var history=$("runs-table");history.replaceChildren();
   if(!runs.length){var row=document.createElement("tr");cell(row,"No research runs recorded.");history.appendChild(row)}
   runs.forEach(function(item){var row=document.createElement("tr");cell(row,item.day);cell(row,item.status);cell(row,item.evidence_count);cell(row,item.error_code||"—");history.appendChild(row)});
   var list=$("sources-table");list.replaceChildren();
-  if(!sources.length){var rr=document.createElement("tr");cell(rr,"No evidence recorded.");list.appendChild(rr)}
+  if(!sources.length){var rr=document.createElement("tr");cell(rr,"No trend observations recorded.");list.appendChild(rr)}
   sources.forEach(function(item){
     var row=document.createElement("tr");cell(row,item.topic);
-    var c=document.createElement("td");if(typeof item.url==="string" && /^https:\/\/news\.ycombinator\.com\/item\?id=\d+$/.test(item.url)){
+    var c=document.createElement("td");if(typeof item.url==="string" && /^https:\/\/www\.shutterstock\.com\/trends$/.test(item.url)){
       var a=document.createElement("a");a.href=item.url;a.target="_blank";a.rel="noopener noreferrer";a.textContent=item.title;c.appendChild(a);
     }else{c.textContent=item.title}row.appendChild(c);cell(row,item.published_at||"—");list.appendChild(row);
   });
