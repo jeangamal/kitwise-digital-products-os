@@ -2,7 +2,7 @@
  * Static dashboard shell. All business data is fetched only after authentication.
  * No external scripts, telemetry, cookies, localStorage, or secret persistence.
  */
-export const DASHBOARD_HTML = String.raw\`<!doctype html>
+export const DASHBOARD_HTML = String.raw`<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="dark">
@@ -192,4 +192,4 @@ var refresh=document.createElement("button");refresh.type="button";refresh.class
 });$("app").insertBefore(refresh,$("app").firstChild);
 })();
 </script>
-</body></html>\`;
+</body></html>`;
