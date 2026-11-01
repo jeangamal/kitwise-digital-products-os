@@ -77,4 +77,6 @@ jobs:
           echo "Daily cron: 07:17 UTC; one AI synthesis maximum per UTC day." >> "$GITHUB_STEP_SUMMARY"
           echo "To inspect private research, open D1 kitwise-company-os in Cloudflare and run:" >> "$GITHUB_STEP_SUMMARY"
           echo '`SELECT day,status,evidence_count,error_code,report_json FROM research_runs ORDER BY day DESC LIMIT 3;`' >> "$GITHUB_STEP_SUMMARY"
-          echo "Open the private Chairman Dashboard at: https://kitwise-company-os.jean-gamal.workers.dev/dashboard" >> "$GITHUB_STEP_SUMMARY"\n          echo "Enter your own 64-character KITWISE_CHAIRMAN_KEY there. It is never shown in Actions logs." >> "$GITHUB_STEP_SUMMARY"\n          echo "The /health endpoint is public; private research requires your key." >> "$GITHUB_STEP_SUMMARY"
+          echo "Open the private Chairman Dashboard at: https://kitwise-company-os.jean-gamal.workers.dev/dashboard" >> "$GITHUB_STEP_SUMMARY"
+          echo "Enter your own 64-character KITWISE_CHAIRMAN_KEY there. It is never shown in Actions logs." >> "$GITHUB_STEP_SUMMARY"
+          echo "The /health endpoint is public; private research requires your key." >> "$GITHUB_STEP_SUMMARY"
