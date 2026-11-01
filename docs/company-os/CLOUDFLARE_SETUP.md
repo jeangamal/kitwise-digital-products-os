@@ -28,7 +28,7 @@
 - The source is Hacker News Algolia *headlines*, used as **weak discussion signals only**, never sales, demand, or purchasing evidence. The report explicitly lists missing validation data.
 - If no credible sources are available or AI fails, the run is marked `needs_attention` rather than pretending it completed.
 - If more than one code contributor uses the same Cloudflare account, keep the account token restricted and rotate it if exposed.
-- This pilot does not expose private chairman dashboard routes; access results through your authenticated Cloudflare D1 console.
+- The new Chairman Dashboard at `/dashboard` offers protected read-only D1 reporting and a bounded manual research trigger. Without an independently generated 64-character secret installed as a Cloudflare Worker secret, its `/api/*` endpoints fail closed. See [Chairman Dashboard setup](CHAIRMAN_DASHBOARD.md).
 
 ## Follow-on implementation
 
