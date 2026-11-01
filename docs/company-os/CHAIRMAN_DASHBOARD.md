@@ -43,7 +43,7 @@ The public Dashboard page shows a locked sign-in shell. D1 records are never ava
 - D1 records are private even though the UI shell and the /health route are publicly accessible.
 - The manually triggered research cycle is limited to **one attempt per UTC day**, shared with the scheduled cron trigger.
 - Manual triggers do not buy anything, list assets, or publish products.
-- Hacker News discussion signals are not evidence of sales. Unverified AI summaries are presented as hypotheses.
+- Microstock search signals are not evidence of sales. Unverified AI summaries are presented as hypotheses. Historical Hacker News pilot data remains archived separately.
 - Failed/retry-limited runs must be inspected manually in v0.2. The dashboard does not erase or silently retry uncertain tasks.
 - Access-key login is an initial security mechanism. A future version should adopt Cloudflare Access with individual identity and MFA.
 
