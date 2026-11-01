@@ -18,18 +18,15 @@ function envWithRows(rows = []) {
     CHAIRMAN_DASHBOARD_KEY: GOOD,
     DB: {
       prepare(sql) {
-        if (sql.includes("FROM research_runs")) return {
+        if (sql.includes("FROM market_research_runs")) return {
           all: async () => ({ results: rows })
         };
-        if (sql.includes("FROM research_evidence")) return {
+        if (sql.includes("FROM market_research_signals")) return {
           bind: () => ({ all: async () => ({ results: [
-            { topic: "invoices", title: "<img src=x onerror=alert(1)>",
-              source: "hacker_news_algolia",
-              url: "javascript:alert(1)", published_at: "2026-11-02" },
-            { topic: "business tools", title: "Real discussion",
-              source: "hacker_news_algolia",
-              url: "https://news.ycombinator.com/item?id=123",
-              published_at: "2026-11-01" }
+            { keyword: "test keyword", matching_results: 5000, demand_label: "Low",
+              growth_percent: 120, source_url: "javascript:alert(1)" },
+            { keyword: "new year 2027", matching_results: 41736, demand_label: "High",
+              growth_percent: 98, source_url: "https://www.shutterstock.com/trends" }
           ] }) })
         };
         if (sql.startsWith("INSERT OR IGNORE")) return {
@@ -48,7 +45,10 @@ const row = {
     ai_interpretation_unverified: "Possible opportunity; buyer validation required.",
     missing: ["verified_buyer_intent", "marketplace_sales"],
     provenance: "live_public_discussion_signals",
-    agent: "@cf/zai-org/glm-4.7-flash"
+    agent: "@cf/zai-org/glm-4.7-flash",
+    version: "microstock-v0.3",
+    shortlist: [{keyword:"new year 2027",matching_results:41736,demand_label:"High",growth_percent:98,triage_index:25,decision:"research_before_build"}],
+    season_calendar: [{name:"Valentine\u0027s Day",date:"2027-02-14",days_until:104,suggested_upload_by:"2026-12-01",production_status:"prepare_and_upload_now"}]
   })
 };
 
@@ -89,11 +89,13 @@ test("valid chairman credential reads only private reports and sanitizes source 
   assert.equal(res.status, 200);
   const data = await res.json();
   assert.equal(data.research.latest.evidence_count, 8);
+  assert.equal(data.research.latest.report.shortlist[0].keyword, "new year 2027");
   assert.equal(data.research.latest.report.ai_interpretation_unverified, "Possible opportunity; buyer validation required.");
   assert.equal(data.research.sources[0].url, null);
-  assert.equal(data.research.sources[1].url, "https://news.ycombinator.com/item?id=123");
+  assert.equal(data.research.sources[1].url, "https://www.shutterstock.com/trends");
   assert.equal(data.business.verified_profit, null);
   assert.equal(data.departments.find(d => d.name === "Product Operations").implemented, false);
+  assert.equal(data.departments.find(d => d.name === "Microstock Market Intelligence").implemented, true);
 });
 
 test("dashboard shows waiting state when no runs exist", async () => {
