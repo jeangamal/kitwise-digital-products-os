@@ -1,3 +1,6 @@
+import { authorizeChairman, chairmanOverview, privateJson, securityHeaders } from "./chairman.mjs";
+import { DASHBOARD_HTML } from "./dashboard.mjs";
+
 /**
  * Kitwise Company OS cloud pilot.
  * Purpose: scheduled, bounded public research + one free-tier AI synthesis.
@@ -121,11 +124,44 @@ export async function runResearchCycle(env, options = {}) {
   }
 }
 
+function dashboardPage() {
+  const bytes = crypto.getRandomValues(new Uint8Array(18));
+  const nonce = btoa(String.fromCharCode(...bytes));
+  const headers = securityHeaders({
+    "content-type": "text/html; charset=utf-8",
+    "content-security-policy": "default-src 'none'; script-src 'nonce-" + nonce + "'; style-src 'nonce-" + nonce + "'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'; form-action 'none'; img-src 'self'"
+  });
+  return new Response(DASHBOARD_HTML.replaceAll("__NONCE__", nonce), { status: 200, headers });
+}
+
 export default {
-  async fetch(request) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") {
       return json({ app: "kitwise-company-os", component: "cloud-research-pilot", status: "deployed", user_data_exposed: false });
+    }
+    if (request.method === "GET" && url.pathname === "/") {
+      return new Response(null, { status: 302, headers: securityHeaders({ location: "/dashboard" }) });
+    }
+    if (request.method === "GET" && url.pathname === "/dashboard") {
+      return dashboardPage();
+    }
+    if (url.pathname.startsWith("/api/")) {
+      const verdict = await authorizeChairman(request, env);
+      if (verdict === "not_configured") return privateJson({ error: "chairman_access_not_configured" }, 503);
+      if (verdict !== "authorized") return privateJson({ error: "unauthorized" }, 401);
+      if (url.pathname === "/api/overview" && request.method === "GET") {
+        try { return privateJson(await chairmanOverview(env)); }
+        catch (_) { return privateJson({ error: "database_read_unavailable" }, 503); }
+      }
+      if (url.pathname === "/api/research/run" && request.method === "POST") {
+        const origin = request.headers.get("origin");
+        if (origin && origin !== url.origin) return privateJson({ error: "invalid_origin" }, 403);
+        if (!ctx || typeof ctx.waitUntil !== "function") return privateJson({ error: "job_runtime_unavailable" }, 503);
+        ctx.waitUntil(runResearchCycle(env));
+        return privateJson({ status: "accepted", note: "One UTC-day research attempt maximum; check the dashboard for results." }, 202);
+      }
+      return privateJson({ error: "not_found" }, 404);
     }
     return json({ error: "not_found" }, 404);
   },
