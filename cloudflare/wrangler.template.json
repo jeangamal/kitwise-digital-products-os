@@ -1,0 +1,25 @@
+{
+  "name": "kitwise-company-os",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-10-15",
+  "workers_dev": true,
+  "triggers": {
+    "crons": [
+      "17 7 * * *"
+    ]
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kitwise-company-os",
+      "database_id": "REPLACED_AT_DEPLOYMENT",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}
