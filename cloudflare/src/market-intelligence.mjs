@@ -23,7 +23,11 @@ const monthEvents = [
 const easterWestern = { "2027": "2027-03-28" };
 const extraDates = { "2026": [{ name: "Black Friday", date: "2026-11-27", keywords: ["black friday","sale","discount","shopping","promo"], use: "retail campaigns" },
   { name: "Cyber Monday", date: "2026-11-30", keywords: ["cyber monday","online sale","ecommerce"], use: "online promotions" }],
-  "2027": [{ name: "Black Friday", date: "2027-11-26", keywords: ["black friday","sale","discount","shopping","promo"], use: "retail campaigns" },
+  "2027": [
+    { name: "Lunar New Year", date: "2027-02-06", keywords: ["lunar new year","chinese new year","year of the goat","lantern"], use: "greetings and culturally accurate retail design" },
+    { name: "Ramadan (Egypt, tentative)", date: "2027-02-09", keywords: ["ramadan","iftar","lantern","crescent","suhoor"], use: "MENA retail and hospitality campaigns", date_note: "Tentative; confirm with relevant local moon-sighting authority" },
+    { name: "Eid al-Fitr (tentative)", date: "2027-03-10", keywords: ["eid","eid mubarak","crescent","gift"], use: "religious holiday greetings and retail campaigns", date_note: "Tentative; may vary by country and moon sighting" },
+    { name: "Black Friday", date: "2027-11-26", keywords: ["black friday","sale","discount","shopping","promo"], use: "retail campaigns" },
   { name: "Cyber Monday", date: "2027-11-29", keywords: ["cyber monday","online sale","ecommerce"], use: "online promotions" }] };
 
 function dayDifference(a, b) {
@@ -143,6 +147,8 @@ export const RESEARCH_MANDATE = [
   "If observed demand is Low, state Low explicitly even when growth is high. Do not infer a true supply-demand gap from relative growth or result count.",
   "Season events are planning opportunities, NOT proof of demand. Upload date is a guideline; distinguish late/too early/ready windows.",
   "Do not recommend copyrighted logos, character likenesses, public figures or trademarked designs as generic commercial stock.",
+  "Comply with platform provenance rules: Shutterstock does not accept contributor AI-generated imagery; Adobe requires the correct generative AI flag when applicable. A creator-owned Cinema 4D render is not automatically the same as a wholly AI-generated file; provenance must be checked.",
+  "For tentative lunar religious dates, do not claim a fixed confirmed date. Require regional cultural accuracy and local date verification.",
   "Prefer modular, cohesive, editable-useful asset families over 50 trivial variations. Prioritize buyer usefulness and quality before mass production.",
   "Do not pretend to have evaluated Adobe, Dreamstime or other marketplace competition without evidence; call out missing competitor comparisons and missing product-level sales.",
   "Output headings: MARKET FACTS; UPCOMING BUYING SEASONS; UP TO 5 ASSET PACK BRIEFS (ZERO IF NO CREDIBLE FIT); REJECT/DEFER; EVIDENCE GAPS & NEXT VALIDATION STEPS.",
