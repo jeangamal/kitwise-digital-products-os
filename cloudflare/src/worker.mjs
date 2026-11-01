@@ -66,7 +66,7 @@ export async function runResearchCycle(env, options = {}) {
       version:"microstock-v0.3",
       provenance:rows.length?"observed_shutterstock_public_trends":"no_live_trends_available",
       evidence_quality:rows.length?"single_platform_search_signals_not_sales":"no_current_market_evidence",
-      platform_coverage:{observed:["Shutterstock"],unverified:["Adobe Stock","Dreamstime","Etsy","Creative Market"]},
+      platform_coverage:{observed:rows.length?["Shutterstock"]:[],unverified:rows.length?["Adobe Stock","Dreamstime","Etsy","Creative Market"]:["Shutterstock","Adobe Stock","Dreamstime","Etsy","Creative Market"]},
       source_urls:{shutterstock_trends:TREND_URL,shutterstock_contributor_briefs:BRIEFS_URL,adobe_seasonal_guidance:ADOBE_GUIDE_URL},
       agent:MARKET_MODEL,
       ai_interpretation_unverified:analysis,
