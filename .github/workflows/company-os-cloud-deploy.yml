@@ -1,0 +1,64 @@
+name: Deploy Kitwise Company OS to Cloudflare (manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kitwise-company-os-cloud-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CI: "true"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Fail closed if Cloudflare not authorized
+        shell: bash
+        run: |
+          if [[ -z "$CLOUDFLARE_ACCOUNT_ID" || -z "$CLOUDFLARE_API_TOKEN" ]]; then
+            echo "::error::Add CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN in GitHub Actions secrets. Never paste them in chat."
+            exit 1
+          fi
+      - name: Install official Cloudflare Wrangler CLI
+        run: npm install --prefix cloudflare --no-save --no-audit --no-fund wrangler@4
+      - name: Unit tests (must pass before resource creation)
+        run: node --test cloudflare/tests/*.test.mjs
+      - name: Discover or initialize dedicated D1 database
+        shell: bash
+        run: |
+          set -euo pipefail
+          WRANGLER=./cloudflare/node_modules/.bin/wrangler
+          "$WRANGLER" d1 list --json > "$RUNNER_TEMP/d1-before.json"
+          if node -e 'const x=require(process.argv[1]);const d=Array.isArray(x)?x:x.result;if(!Array.isArray(d))process.exit(2);process.exit(d.some(z=>z.name==="kitwise-company-os")?0:1)' "$RUNNER_TEMP/d1-before.json"; then
+            echo "Existing dedicated D1 database found."
+          else
+            "$WRANGLER" d1 create kitwise-company-os --binding DB --location weur
+          fi
+          "$WRANGLER" d1 list --json > "$RUNNER_TEMP/d1-after.json"
+          node cloudflare/scripts/configure.mjs "$RUNNER_TEMP/d1-after.json"
+      - name: Apply versioned schema migrations
+        run: ./cloudflare/node_modules/.bin/wrangler d1 migrations apply DB --remote --config cloudflare/wrangler.json
+      - name: Deploy restricted daily research Worker
+        run: ./cloudflare/node_modules/.bin/wrangler deploy --config cloudflare/wrangler.json
+      - name: Explain first-time activation
+        if: success()
+        run: |
+          echo "## Kitwise Cloud Research Pilot deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "Worker: kitwise-company-os; database: kitwise-company-os." >> "$GITHUB_STEP_SUMMARY"
+          echo "Daily cron: 07:17 UTC; one AI synthesis maximum per UTC day." >> "$GITHUB_STEP_SUMMARY"
+          echo "To inspect private research, open D1 kitwise-company-os in Cloudflare and run:" >> "$GITHUB_STEP_SUMMARY"
+          echo '`SELECT day,status,evidence_count,error_code,report_json FROM research_runs ORDER BY day DESC LIMIT 3;`' >> "$GITHUB_STEP_SUMMARY"
+          echo "The /health endpoint is public; internal reports are not." >> "$GITHUB_STEP_SUMMARY"
