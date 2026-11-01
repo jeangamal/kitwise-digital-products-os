@@ -1,4 +1,14 @@
-# Kitwise cloud uploads
+# Kitwise — Company OS and Cloud Upload Workers
+
+Kitwise is an autonomous digital-products business operating-system project. The company control plane is under active development; it is **not yet** a fully functioning multi-agent business.
+
+- **Company OS v0.1:** role permissions, task ledger, evidence tracking, basic CEO-to-Research workflow. See [Charter](docs/company-os/CHARTER.md) and [Architecture](docs/company-os/ARCHITECTURE.md).
+- **Cloud Research Pilot:** Cloudflare Workers + D1 + Workers AI; daily public-discussion research, one bounded AI synthesis, private D1 reports. Follow [Cloudflare setup](docs/company-os/CLOUDFLARE_SETUP.md). Requires separate Cloudflare credentials stored in GitHub Secrets before manual deployment. No live deployment is claimed.
+- **Existing stock-upload worker:** GitHub Actions + Python + Google Drive; transfers are NOT marketplace submissions and live connections must be configured. See below.
+
+---
+
+## Existing stock-upload worker
 
 Check a private cloud inbox, validate images and metadata, and transfer new assets
 to configured stock contributor inboxes. Runs on GitHub while your laptop is off.
