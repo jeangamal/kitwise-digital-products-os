@@ -3,7 +3,8 @@
 Kitwise is an autonomous digital-products business operating-system project. The company control plane is under active development; it is **not yet** a fully functioning multi-agent business.
 
 - **Company OS v0.1:** role permissions, task ledger, evidence tracking, basic CEO-to-Research workflow. See [Charter](docs/company-os/CHARTER.md) and [Architecture](docs/company-os/ARCHITECTURE.md).
-- **Cloud Research Pilot:** Cloudflare Workers + D1 + Workers AI; daily public-discussion research, one bounded AI synthesis, private D1 reports. Follow [Cloudflare setup](docs/company-os/CLOUDFLARE_SETUP.md). Requires separate Cloudflare credentials stored in GitHub Secrets before manual deployment. No live deployment is claimed.
+- **Cloud Research Pilot:** Cloudflare Workers + D1 + Workers AI; deployed and health check confirmed November 2, 2026. Daily public-discussion research and bounded AI synthesis; success of a live research run is not yet established. See [Cloudflare setup](docs/company-os/CLOUDFLARE_SETUP.md).
+- **Chairman Dashboard v0.2:** private source-backed research reports, department status and protected on-demand research. See [Chairman Dashboard setup](docs/company-os/CHAIRMAN_DASHBOARD.md). The dashboard code requires a manual deployment and separate chairman key to unlock.
 - **Existing stock-upload worker:** GitHub Actions + Python + Google Drive; transfers are NOT marketplace submissions and live connections must be configured. See below.
 
 ---
