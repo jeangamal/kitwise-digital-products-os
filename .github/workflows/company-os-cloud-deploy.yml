@@ -32,6 +32,15 @@ jobs:
             echo "::error::Add CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN in GitHub Actions secrets. Never paste them in chat."
             exit 1
           fi
+      - name: Require a strong Chairman key before changing Cloudflare
+        shell: bash
+        env:
+          KITWISE_CHAIRMAN_KEY: ${{ secrets.KITWISE_CHAIRMAN_KEY }}
+        run: |
+          if [[ ! "$KITWISE_CHAIRMAN_KEY" =~ ^[0-9a-fA-F]{64}$ ]]; then
+            echo "::error::Set KITWISE_CHAIRMAN_KEY to 64 hex characters using a secure random generator. Keep it private. No deployment attempted."
+            exit 1
+          fi
       - name: Install official Cloudflare Wrangler CLI
         run: npm install --prefix cloudflare --no-save --no-audit --no-fund wrangler@4
       - name: Unit tests (must pass before resource creation)
@@ -53,6 +62,13 @@ jobs:
         run: ./cloudflare/node_modules/.bin/wrangler d1 migrations apply DB --remote --config cloudflare/wrangler.json
       - name: Deploy restricted daily research Worker
         run: ./cloudflare/node_modules/.bin/wrangler deploy --config cloudflare/wrangler.json
+      - name: Set private Chairman access key in Cloudflare Worker
+        shell: bash
+        env:
+          KITWISE_CHAIRMAN_KEY: ${{ secrets.KITWISE_CHAIRMAN_KEY }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$KITWISE_CHAIRMAN_KEY" | ./cloudflare/node_modules/.bin/wrangler secret put CHAIRMAN_DASHBOARD_KEY --config cloudflare/wrangler.json > /dev/null
       - name: Explain first-time activation
         if: success()
         run: |
@@ -61,4 +77,4 @@ jobs:
           echo "Daily cron: 07:17 UTC; one AI synthesis maximum per UTC day." >> "$GITHUB_STEP_SUMMARY"
           echo "To inspect private research, open D1 kitwise-company-os in Cloudflare and run:" >> "$GITHUB_STEP_SUMMARY"
           echo '`SELECT day,status,evidence_count,error_code,report_json FROM research_runs ORDER BY day DESC LIMIT 3;`' >> "$GITHUB_STEP_SUMMARY"
-          echo "The /health endpoint is public; internal reports are not." >> "$GITHUB_STEP_SUMMARY"
+          echo "Open the private Chairman Dashboard at: https://kitwise-company-os.jean-gamal.workers.dev/dashboard" >> "$GITHUB_STEP_SUMMARY"\n          echo "Enter your own 64-character KITWISE_CHAIRMAN_KEY there. It is never shown in Actions logs." >> "$GITHUB_STEP_SUMMARY"\n          echo "The /health endpoint is public; private research requires your key." >> "$GITHUB_STEP_SUMMARY"
