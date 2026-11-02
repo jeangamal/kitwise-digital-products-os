@@ -18,10 +18,10 @@ function envWithRows(rows = []) {
     CHAIRMAN_DASHBOARD_KEY: GOOD,
     DB: {
       prepare(sql) {
-        if (sql.includes("FROM indexed_research_runs")) return {
+        if (sql.includes("FROM curated_research_runs")) return {
           all: async () => ({ results: rows })
         };
-        if (sql.includes("FROM indexed_research_sources")) return {
+        if (sql.includes("FROM curated_research_sources")) return {
           bind: () => ({ all: async () => ({ results: [
             { title:"Untrusted page",url:"javascript:alert(1)",source:"shutterstock.com",
               query_id:"shutterstock-customer-brief",retrieved_at:"2026-11-02" },
@@ -30,7 +30,7 @@ function envWithRows(rows = []) {
           ] }) })
         };
         if (sql.startsWith("INSERT OR IGNORE") ||
-            sql.startsWith("UPDATE indexed_research_runs SET status='running'")) return {
+            sql.startsWith("UPDATE curated_research_runs SET status='running'")) return {
           bind: () => ({ run: async () => ({ meta: { changes: 0 } }) })
         };
         throw new Error("unexpected_query");
@@ -47,7 +47,10 @@ const row = {
     missing: ["verified_buyer_intent", "marketplace_sales"],
     provenance: "live_public_discussion_signals",
     agent: "@cf/zai-org/glm-4.7-flash",
-    version: "microstock-indexed-v0.5",indexed_source_count:2,
+    version: "microstock-curated-v0.6",indexed_source_count:2,
+    search_rejected_count:7,research_quality_gate:"passed_editorial_gate",
+    search_rejection_reasons:{outdated_trend_article:2,generic_or_promotional_listing:5},
+    source_documents:[{url:"https://submit.shutterstock.com/help/en/articles/10594691-what-type-of-content-are-shutterstock-customers-looking-for",title:"Contributor shot list",category:"contributor_guidance",quality_score:90}],
     source_diagnostics:{indexed_search:"ok",direct_shutterstock:"disabled_after_http_403"},
     shortlist: [],
     season_calendar: [{name:"Valentine\u0027s Day",date:"2027-02-14",days_until:104,suggested_upload_by:"2026-12-01",production_status:"prepare_and_upload_now"}]
