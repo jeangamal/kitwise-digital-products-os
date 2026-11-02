@@ -75,6 +75,18 @@ function validatedReport(raw) {
         ? { indexed_search:String(parsed.source_diagnostics.indexed_search||"unknown").slice(0,80),
             direct_shutterstock:String(parsed.source_diagnostics.direct_shutterstock||"disabled").slice(0,80)} : null,
       indexed_source_count:Number(parsed.indexed_source_count)||0,
+      search_rejected_count:Number(parsed.search_rejected_count)||0,
+      research_quality_gate:String(parsed.research_quality_gate||"unknown").slice(0,90),
+      search_rejection_reasons:parsed.search_rejection_reasons && typeof parsed.search_rejection_reasons==="object"
+        ? Object.fromEntries(Object.entries(parsed.search_rejection_reasons)
+            .filter(([key,value])=>/^[a-z_]{4,64}$/.test(key)&&Number.isSafeInteger(value)&&value>=0)
+            .slice(0,12)):{},
+      source_documents:Array.isArray(parsed.source_documents)?parsed.source_documents.slice(0,20).map(d=>({
+        url:String(d.url||"").slice(0,500),title:String(d.title||"").slice(0,220),
+        category:String(d.category||"unknown").slice(0,80),
+        quality_score:Number(d.quality_score)||0,
+        publication_year:typeof d.publication_year==="number"?d.publication_year:null
+      })):[],
       source_failures:Array.isArray(parsed.source_failures)?parsed.source_failures.slice(0,8).map(String):[],
       contributor_briefs:Array.isArray(parsed.contributor_briefs)
         ? parsed.contributor_briefs.slice(0,15).map(item=>({
@@ -97,7 +109,7 @@ function validatedReport(raw) {
 export async function chairmanOverview(env) {
   if (!env?.DB) throw new Error("database_binding_missing");
   const { results = [] } = await env.DB.prepare(
-    "SELECT day,status,started_at,completed_at,document_count AS evidence_count,error_code,report_json,retry_count FROM indexed_research_runs ORDER BY day DESC LIMIT 10"
+    "SELECT day,status,started_at,completed_at,document_count AS evidence_count,error_code,report_json,retry_count FROM curated_research_runs ORDER BY day DESC LIMIT 10"
   ).all();
   const runs = results.map(row => ({
     day: row.day, status: row.status, started_at: row.started_at,
@@ -110,8 +122,9 @@ export async function chairmanOverview(env) {
   let sources = [];
   if (latest) {
     const r = await env.DB.prepare(
-      "SELECT title,url,source,query_id,retrieved_at,evidence_type FROM indexed_research_sources WHERE run_day=? ORDER BY query_id,title LIMIT 30"
+      "SELECT title,url,source,query_id,retrieved_at,evidence_type FROM curated_research_sources WHERE run_day=? ORDER BY query_id,title LIMIT 30"
     ).bind(latest.day).all();
+    const byUrl=new Map((latest?.report?.source_documents||[]).map(item=>[item.url,item]));
     sources=(r.results||[]).map(item=>{
       let safeUrl=null;
       try {
@@ -125,12 +138,14 @@ export async function chairmanOverview(env) {
         source:String(item.source).slice(0,70),
         url:safeUrl,
         published_at:String(item.retrieved_at||"").slice(0,32),
-        evidence_type:"search_indexed_official_page_not_sales"
+        evidence_type:"search_indexed_official_page_not_sales",
+        category:byUrl.get(String(item.url))?.category||"editorial",
+        quality_score:byUrl.get(String(item.url))?.quality_score||null
       };
     });
   }
   return {
-    product: "Kitwise Company OS", version: "0.5-indexed-microstock",
+    product: "Kitwise Company OS", version: "0.6-curated-microstock",
     observed_at: new Date().toISOString(),
     research: {
       latest, runs, sources, run_count: runs.length,
