@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import worker,{runResearchCycle} from "../src/worker.mjs";
 import {
-  SEARCH_API_URL,buildSearchQueries,parseSearchResponse,searchOfficialEditorial,
+  SEARCH_API_URL,buildSearchQueries,parseSearchResponse,searchOfficialEditorial,evaluateSource,
   makeIndexedPrompt,INDEXED_RESEARCH_MANDATE
 } from "../src/indexed-research.mjs";
 import {seasonCalendar} from "../src/market-intelligence.mjs";
@@ -33,19 +33,19 @@ class FakeDB {
   constructor(){this.runs=new Map();this.sources=new Map();}
   prepare(sql){
     return {bind:(...args)=>({run:async()=>{
-      if(sql.startsWith("INSERT OR IGNORE INTO indexed_research_runs")){
+      if(sql.startsWith("INSERT OR IGNORE INTO curated_research_runs")){
         if(this.runs.has(args[0]))return {meta:{changes:0}};
         this.runs.set(args[0],{status:"running",retry_count:0});return {meta:{changes:1}};
       }
-      if(sql.startsWith("UPDATE indexed_research_runs SET status='running'")){
+      if(sql.startsWith("UPDATE curated_research_runs SET status='running'")){
         const r=this.runs.get(args[1]);
         if(!r||r.status!=="needs_attention"||r.retry_count!==0)return {meta:{changes:0}};
         r.retry_count++;r.status="running";return {meta:{changes:1}};
       }
-      if(sql.startsWith("INSERT OR IGNORE INTO indexed_research_sources")){
+      if(sql.startsWith("INSERT OR IGNORE INTO curated_research_sources")){
         this.sources.set(args[3],args);return {meta:{changes:1}};
       }
-      if(sql.startsWith("UPDATE indexed_research_runs")){
+      if(sql.startsWith("UPDATE curated_research_runs")){
         const r=this.runs.get(args.at(-1));r.status=args[0];
         if(args.length===6){r.report=JSON.parse(args[3]);r.error=args[4]}
         return {meta:{changes:1}};
@@ -80,6 +80,7 @@ test("official indexed search caps calls and never claims keyword demand data",a
   assert.equal(search.status,"ok");
   assert.equal(search.queries_attempted,4);
   assert.equal(search.documents.length,2);
+  assert.equal(search.rejected_count,8);
   const payload=makeIndexedPrompt(search.documents,seasonCalendar("2026-11-02"),"2026-11-02");
   assert.match(payload,/S1/);
   assert.doesNotMatch(INDEXED_RESEARCH_MANDATE,/guaranteed sales/i);
@@ -92,6 +93,8 @@ test("full cycle stores only indexed official URLs and grounded AI notes",async(
   assert.equal(e.DB.sources.size,2);
   assert.equal(e.DB.runs.get("2026-11-02").report.market_keyword_metrics_count,0);
   assert.equal(e.DB.runs.get("2026-11-02").report.provenance,"search_indexed_public_marketplace_pages");
+  assert.equal(e.DB.runs.get("2026-11-02").report.search_rejected_count,8);
+  assert.equal(e.DB.runs.get("2026-11-02").report.research_quality_gate,"passed_editorial_gate");
   assert.equal(e.DB.runs.get("2026-11-02").report.source_diagnostics.direct_shutterstock,"disabled_after_http_403");
   assert.equal((await runResearchCycle(e,{fetchImpl:fakeFetch,now})).status,"already_claimed");
 });
@@ -122,4 +125,60 @@ test("public health remains accessible and reports stay private",async()=>{
   const res=await worker.fetch(new Request("https://example.test/health"));
   assert.equal(res.status,200);assert.equal((await res.json()).user_data_exposed,false);
   assert.equal((await worker.fetch(new Request("https://example.test/api/overview"))).status,503);
+});
+
+test("reject actual irrelevant marketplace pages observed on the Chairman dashboard",()=>{
+  const junk=[
+    {title:"2026 Images – Browse 1,376,054 Stock Photos, Vectors and Video",
+      url:"https://stock.adobe.com/images/2026",content:"Browse 2026 pictures and vectors"},
+    {title:"Adobe MAX 2025 - The Creativity Conference",
+      url:"https://www.adobe.com/max.html",content:"The world's creativity conference"},
+    {title:"Adobe Stock 2022 Creative Trends forecast",
+      url:"https://blog.adobe.com/en/publish/2022/01/14/adobe-stock-creative-trends",content:"Stock design forecast from 2022"},
+    {title:"Media Alert: Adobe Creative Visual Report Forecasts Psychedelic and Animal Trends in 2023",
+      url:"https://news.adobe.com/news/2023/01/creative-report",content:"2023 creative visual trend forecast"},
+    {title:"Sharing Branding Assets with Creative Cloud Libraries for Teams",
+      url:"https://experienceleague.adobe.com/docs/assets/en",content:"Asset sharing tips"},
+    {title:"20% Off Winter royalty-free images - Shutterstock",
+      url:"https://www.shutterstock.com/search/winter",content:"Stock photography offer"},
+    {title:"Black Friday Banner royalty-free images - Shutterstock",
+      url:"https://www.shutterstock.com/search/black-friday-banner",content:"Browse stock images"},
+  ];
+  assert.ok(junk.every(item=>!evaluateSource(item,2026).accepted));
+});
+test("accept current and relevant asset-specific 2026 contributor guidance",()=>{
+  const useful=[
+    {title:"How creators are leveraging Adobe's 2026 Creative Trends",
+      url:"https://blog.adobe.com/en/publish/2026/01/08/how-creators-leveraging-adobe-2026-creative-trends",
+      content:"Adobe Stock creative trends for 3D surfaces and creator commercial visual assets"},
+    {title:"Call for Content: Creative Components",
+      url:"https://stock.adobe.com/pages/artisthub/get-inspired/design-assets-content-needs",
+      content:"Stock buyers need isolated objects, borders, celebration elements, stationery and stickers."},
+    {title:"What type of content are Shutterstock customers looking for?",
+      url:"https://submit.shutterstock.com/help/en/articles/10594691-what-type-of-content-are-shutterstock-customers-looking-for",
+      content:"Customer demand informs monthly shot lists, seasonal trend keywords and contributor content briefs."}
+  ];
+  assert.ok(useful.every(item=>evaluateSource(item,2026).accepted));
+});
+test("all generic results fail commercial relevance gate without calling AI",async()=>{
+  let callCount=0;
+  const context={DB:new FakeDB(),AI:{run:async()=>{callCount++;return {response:"should-not-run"}}},
+    TAVILY_API_KEY:key};
+  const junkResponse={results:[{title:"Adobe MAX 2025",url:"https://www.adobe.com/max.html",content:"Adobe conference"},
+    {title:"20% Off Winter royalty-free images",url:"https://www.shutterstock.com/search/winter",content:"Stock browsing promotion"}]};
+  const out=await runResearchCycle(context,{fetchImpl:async()=>({ok:true,json:async()=>junkResponse}),now});
+  assert.equal(out.status,"needs_attention");
+  assert.equal(out.error_code,"all_indexed_results_failed_relevance_gate");
+  assert.equal(out.source_documents,0);
+  assert.equal(callCount,0);
+  assert.equal(context.DB.runs.get("2026-11-02").report.search_rejected_count,8);
+});
+test("single editorial article is not enough for a source-backed production decision",async()=>{
+  let calls=0;const context={DB:new FakeDB(),AI:{run:async()=>{calls++;return {response:"should-not-run"}}},TAVILY_API_KEY:key};
+  const one={results:[fixture.results[0]]};
+  const result=await runResearchCycle(context,{fetchImpl:async()=>({ok:true,json:async()=>one}),now});
+  assert.equal(result.status,"needs_attention");
+  assert.equal(result.source_documents,1);
+  assert.equal(result.error_code,"insufficient_relevant_market_sources");
+  assert.equal(calls,0);
 });
