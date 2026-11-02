@@ -94,7 +94,7 @@ td{color:#c9d6e8}td small{color:#889bb5;display:block}
     <div id="view-overview" class="view">
       <div class="grid">
         <div class="metric"><small>Research runs (recent)</small><strong id="runs-count">—</strong><span>Latest 10 recorded runs</span></div>
-        <div class="metric"><small>Public sources reviewed</small><strong id="signal-count">—</strong><span>Public publisher pages; not sales data</span></div>
+        <div class="metric"><small>Relevant source articles retained</small><strong id="signal-count">—</strong><span>Public publisher pages; not sales data</span></div>
         <div class="metric"><small>Verified net profit</small><strong>—</strong><span>Finance integration pending</span></div>
         <div class="metric"><small>Products selling</small><strong>—</strong><span>Marketplace data not connected</span></div>
       </div>
@@ -105,13 +105,17 @@ td{color:#c9d6e8}td small{color:#889bb5;display:block}
       </div>
     </div>
     <section aria-label="Commercial opportunity shortlist">
-      <h3 class="section-title">Quantitative Demand Signals <span class="dim">Unavailable until an authorized market metrics feed is connected</span></h3>
-      <div class="card tbl-wrap"><table><thead><tr><th>Stock keyword</th><th>Demand</th><th>Growth</th><th>Matching results</th><th>Season / deadline</th><th>Next action</th></tr></thead>
-        <tbody id="shortlist-table"><tr><td colspan="6">No verified demand metrics available yet.</td></tr></tbody>
-      </table></div>
-      <h3 class="section-title">Indexed Official Marketplace Sources <span class="dim">Source-backed editorial evidence; not sales data</span></h3>
-      <div class="card tbl-wrap"><table><thead><tr><th>Publisher</th><th>Indexed article</th><th>Source</th></tr></thead>
-        <tbody id="editorial-briefs-table"><tr><td colspan="3">No indexed marketplace pages retrieved yet.</td></tr></tbody>
+      <h3 class="section-title">Research Relevance & Data Quality <span class="dim">Measured source coverage, not a sales forecast</span></h3>
+      <div class="card">
+        <div class="list-line"><strong>Useful publisher articles retained</strong><span id="quality-accepted">—</span></div>
+        <div class="list-line"><strong>Irrelevant or outdated results rejected</strong><span id="quality-rejected">—</span></div>
+        <div class="list-line"><strong>Evidence quality gate</strong><span id="quality-gate">Awaiting first run</span></div>
+        <div class="list-line"><strong>Numerical demand / competitive sales data</strong><span>Not connected</span></div>
+        <p class="dim source-status" id="quality-details">Results will be screened for commercial relevance before reaching the AI.</p>
+      </div>
+      <h3 class="section-title">Curated Official Publisher Evidence <span class="dim">Contributor briefs and commercial creative guidance only</span></h3>
+      <div class="card tbl-wrap"><table><thead><tr><th>Publisher</th><th>Evidence type</th><th>Contributor guidance</th><th>Source</th></tr></thead>
+        <tbody id="editorial-briefs-table"><tr><td colspan="4">No relevant publisher articles retrieved yet.</td></tr></tbody>
       </table></div>
       <h3 class="section-title">Upcoming Buying Seasons <span class="dim">Plan and upload well before each event</span></h3>
       <div class="card tbl-wrap"><table><thead><tr><th>Season</th><th>Event date</th><th>Suggested upload by</th><th>Production window</th></tr></thead>
@@ -153,25 +157,24 @@ function render(){
   setText("last-updated",latest&&latest.completed_at?"Completed: "+new Date(latest.completed_at).toLocaleString():"No completed run");
   setText("ai-summary",latest&&latest.report&&latest.report.ai_interpretation_unverified?latest.report.ai_interpretation_unverified:"No successful AI interpretation recorded yet.");
   var diag=latest&&latest.report&&latest.report.source_diagnostics;
-  setText("source-status",diag?"Indexed search: "+diag.indexed_search+"; direct Shutterstock: "+diag.direct_shutterstock:"Source checks not yet available.");
+  setText("source-status",diag?"Indexed research: "+diag.indexed_search+"; direct Shutterstock still unavailable":"Source checks not yet available.");
 
   $("trigger").disabled=!r.manual_run_available;
   $("trigger").textContent=r.manual_run_available?"Run research / retry failed cycle":"Daily attempt limit reached";
-  var shortlist=$("shortlist-table");shortlist.replaceChildren();
-  var shortlistItems=latest&&latest.report&&Array.isArray(latest.report.shortlist)?latest.report.shortlist:[];
-  if(!shortlistItems.length){var emptyS=document.createElement("tr");var es=cell(emptyS,"No shortlisted trend-backed ideas yet.");es.colSpan=6;shortlist.appendChild(emptyS)}
-  shortlistItems.forEach(function(item){
-    var line=document.createElement("tr");
-    cell(line,item.keyword);cell(line,item.demand_label);
-    cell(line,String(item.growth_percent)+"%");
-    cell(line,Number(item.matching_results).toLocaleString());
-    cell(line,item.season?item.season.name+" / "+item.season.suggested_upload_by:"Evergreen / to validate");
-    cell(line,String(item.decision).replace(/_/g," "));shortlist.appendChild(line);
-  });
+  var report=latest&&latest.report?latest.report:null;
+  setText("quality-accepted",report?report.indexed_source_count:"—");
+  setText("quality-rejected",report?report.search_rejected_count:"—");
+  setText("quality-gate",report?String(report.research_quality_gate||"unavailable").replace(/_/g," "):"Awaiting first run");
+  var rejection=report&&report.search_rejection_reasons?report.search_rejection_reasons:{};
+  var rejections=Object.entries(rejection).filter(function(item){return Number(item[1])>0})
+    .map(function(item){return item[0].replace(/_/g," ")+": "+item[1]});
+  setText("quality-details",rejections.length?"Filter decisions — "+rejections.join("; "):
+    "No rejected search results recorded. This is not evidence of customer sales.");
   var editorial=$("editorial-briefs-table");editorial.replaceChildren();
-  if(!sources.length){var er=document.createElement("tr");var ec=cell(er,"No authorized research provider connected or no indexed documents.");ec.colSpan=3;editorial.appendChild(er)}
+  if(!sources.length){var er=document.createElement("tr");var ec=cell(er,"No current relevant stock contributor / demand guidance collected.");ec.colSpan=4;editorial.appendChild(er)}
   sources.forEach(function(item){
     var row=document.createElement("tr");cell(row,item.source);
+    cell(row,String(item.category||"Editorial").replace(/_/g," "));
     var titleCell=document.createElement("td");titleCell.textContent=item.title;row.appendChild(titleCell);
     var c=document.createElement("td");
     if(item.url && /^https:\/\/([a-z0-9-]+\.)*(adobe|shutterstock)\.com\//i.test(item.url)){

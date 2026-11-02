@@ -29,15 +29,15 @@ export async function runResearchCycle(env,options={}) {
   const day=now().toISOString().slice(0,10);
   if(!env?.DB || !env?.AI)throw new Error("missing_cloud_bindings");
   const claim=await env.DB.prepare(
-    "INSERT OR IGNORE INTO indexed_research_runs (day,status,started_at) VALUES (?,'running',?)"
+    "INSERT OR IGNORE INTO curated_research_runs (day,status,started_at) VALUES (?,'running',?)"
   ).bind(day,now().toISOString()).run();
   let attempt=1;
   if(claim?.meta?.changes!==1){
     const retry=await env.DB.prepare(
-      "UPDATE indexed_research_runs SET status='running',started_at=?,completed_at=NULL,error_code=NULL,retry_count=retry_count+1 WHERE day=? AND status='needs_attention' AND retry_count=0"
+      "UPDATE curated_research_runs SET status='running',started_at=?,completed_at=NULL,error_code=NULL,retry_count=retry_count+1 WHERE day=? AND status='needs_attention' AND retry_count=0"
     ).bind(now().toISOString(),day).run();
     if(retry?.meta?.changes!==1)
-      return {day,status:"already_claimed",department:"indexed_microstock_research"};
+      return {day,status:"already_claimed",department:"curated_microstock_research"};
     attempt=2;
   }
   const calendar=seasonCalendar(day);
@@ -47,13 +47,14 @@ export async function runResearchCycle(env,options={}) {
     const docs=search.documents;
     if(docs.length){
       const writes=docs.map((d,i)=>env.DB.prepare(
-        "INSERT OR IGNORE INTO indexed_research_sources (id,run_day,title,url,excerpt,source,query_id,retrieved_at,evidence_type) VALUES (?,?,?,?,?,?,?,?,?)"
+        "INSERT OR IGNORE INTO curated_research_sources (id,run_day,title,url,excerpt,source,query_id,retrieved_at,evidence_type) VALUES (?,?,?,?,?,?,?,?,?)"
       ).bind(day+":"+d.url,day,d.title,d.url,d.excerpt,d.source,d.query_id,d.retrieved_at,d.evidence_type));
       await env.DB.batch(writes);
     }
     let interpretation=null;
     let aiError=null;
-    if(docs.length){
+    const sufficientForBrief=docs.length>=2;
+    if(sufficientForBrief){
       try{
         const reply=await env.AI.run(MODEL,{
           messages:[
@@ -68,38 +69,46 @@ export async function runResearchCycle(env,options={}) {
     }
     let errorCode=null;
     if(search.status==="not_configured")errorCode="search_api_not_configured";
+    else if(!docs.length && search.rejected_count>0)errorCode="all_indexed_results_failed_relevance_gate";
     else if(!docs.length)errorCode="indexed_market_sources_unavailable";
+    else if(!sufficientForBrief)errorCode="insufficient_relevant_market_sources";
     else if(aiError)errorCode=aiError;
     else if(search.status==="partial")errorCode="partial_indexed_search_sources";
 
     report={
-      generated_at:now().toISOString(),version:"microstock-indexed-v0.5",
+      generated_at:now().toISOString(),version:"microstock-curated-v0.6",
       provenance:docs.length?"search_indexed_public_marketplace_pages":"no_live_indexed_evidence",
-      evidence_quality:docs.length?"qualitative_publisher_snippets_not_sales_or_marketplace_keyword_metrics":"no_market_evidence",
+      evidence_quality:sufficientForBrief?"curated_official_publisher_guidance_not_verified_sales":
+        docs.length?"insufficient_curated_editorial_sources":"no_market_evidence",
       agent:MODEL,source_provider:"tavily_official_search_api",
       source_diagnostics:{indexed_search:search.status,direct_shutterstock:"disabled_after_http_403"},
       source_failures:search.errors,queries_attempted:search.queries_attempted,
+      search_rejected_count:search.rejected_count||0,
+      search_rejection_reasons:search.rejection_reasons||{},
+      research_quality_gate:sufficientForBrief?"passed_editorial_gate":"insufficient_actionable_publisher_evidence",
       indexed_source_count:docs.length,market_keyword_metrics_count:0,
       ai_interpretation_unverified:interpretation,
       source_documents:docs.map((d,i)=>({id:"S"+(i+1),title:d.title,url:d.url,source:d.source,
-        query_id:d.query_id,evidence_type:d.evidence_type,retrieved_at:d.retrieved_at})),
+        query_id:d.query_id,evidence_type:d.evidence_type,retrieved_at:d.retrieved_at,
+        quality_score:d.quality_score,category:d.category,
+        publication_year:d.publication_year})),
       shortlist:[],
       season_calendar:calendar,
       missing:["verified_microstock_customer_downloads","exact_competing_3d_stock_supply",
         "marketplace_search_demand_counts","platform_specific_content_reviews",
         "buyer_purchase_intent","contribution_margin"],
-      limits:"Search-index snippets reveal public editorial guidance only. No direct Shutterstock keyword metrics, stock sales, download volumes, revenue or proven supply-demand gaps.",
+      limits:"Filtered official editorial snippets are qualitative research leads only. There is no valid numerical stock demand, download, market share, profitability, or supply-demand-gap estimate.",
       attempt,error_code:errorCode
     };
     const status=errorCode?"needs_attention":"completed";
     await env.DB.prepare(
-      "UPDATE indexed_research_runs SET status=?,completed_at=?,document_count=?,report_json=?,error_code=? WHERE day=?"
+      "UPDATE curated_research_runs SET status=?,completed_at=?,document_count=?,report_json=?,error_code=? WHERE day=?"
     ).bind(status,now().toISOString(),docs.length,JSON.stringify(report),errorCode,day).run();
     return {day,status,source_documents:docs.length,ai_interpretation_available:!!interpretation,
-      error_code:errorCode,attempt,department:"indexed_microstock_research"};
+      error_code:errorCode,attempt,department:"curated_microstock_research"};
   }catch(_){
     await env.DB.prepare(
-      "UPDATE indexed_research_runs SET status='needs_attention',completed_at=?,error_code='indexed_cycle_failure' WHERE day=?"
+      "UPDATE curated_research_runs SET status='needs_attention',completed_at=?,error_code='indexed_cycle_failure' WHERE day=?"
     ).bind(now().toISOString(),day).run();
     return {day,status:"needs_attention",error_code:"indexed_cycle_failure",
       attempt,department:"indexed_microstock_research"};
