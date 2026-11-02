@@ -29,7 +29,8 @@ function envWithRows(rows = []) {
               growth_percent: 98, source_url: "https://www.shutterstock.com/trends" }
           ] }) })
         };
-        if (sql.startsWith("INSERT OR IGNORE")) return {
+        if (sql.startsWith("INSERT OR IGNORE") ||
+            sql.startsWith("UPDATE market_research_runs SET status='running'")) return {
           bind: () => ({ run: async () => ({ meta: { changes: 0 } }) })
         };
         throw new Error("unexpected_query");

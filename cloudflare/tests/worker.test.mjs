@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import worker, { runResearchCycle } from "../src/worker.mjs";
 import {
-  parseShutterstockTrends, fetchShutterstockTrends, seasonCalendar,
+  parseShutterstockTrends, fetchShutterstockTrends, parseContributorBriefs, fetchContributorBriefs, publicSourceFailure, BRIEFS_URL, seasonCalendar,
   screenMicrostockCandidates, makeResearchPrompt, RESEARCH_MANDATE, TREND_URL
 } from "../src/market-intelligence.mjs";
 
@@ -12,30 +12,41 @@ const sampleHtml = "<html><body><h1>Trending searches</h1>" +
  '<a href="/images/search/3d-vegetables">3d vegetables Results: 101,686 Demand: High Growth: 340%</a>' +
  '<a href="/images/search/spiderman-mask">spiderman mask Results: 73,161 Demand: High Growth: 629%</a></body></html>';
 class FakeDB {
-  constructor() {this.runs=new Map();this.signals=new Map();}
-  prepare(sql) {
-    return { bind: (...params)=>({
-      run:async()=>{
-        if(sql.startsWith("INSERT OR IGNORE INTO market_research_runs")){
-          const day=params[0];if(this.runs.has(day))return {meta:{changes:0}};
-          this.runs.set(day,{status:"running",created:params[1]});return {meta:{changes:1}};
-        }
-        if(sql.startsWith("INSERT OR IGNORE INTO market_research_signals")){
-          this.signals.set(params[0],params);return {meta:{changes:1}};
-        }
-        if(sql.startsWith("UPDATE market_research_runs")){
-          const day=params.at(-1);const row=this.runs.get(day);row.status=params[0];
-          if(params.length===6){row.report=JSON.parse(params[3]);row.error=params[4]}
-          return {meta:{changes:1}};
-        }
-        throw new Error("unexpected_sql:"+sql);
+  constructor(){this.runs=new Map();this.signals=new Map();}
+  prepare(sql){
+    return {bind:(...params)=>({run:async()=>{
+      if(sql.startsWith("INSERT OR IGNORE INTO market_research_runs")){
+        const day=params[0];
+        if(this.runs.has(day))return {meta:{changes:0}};
+        this.runs.set(day,{status:"running",retry_count:0,started:params[1]});
+        return {meta:{changes:1}};
       }
-    }) };
+      if(sql.startsWith("INSERT INTO market_research_signals")){
+        this.signals.set(params[0],params);return {meta:{changes:1}};
+      }
+      if(sql.startsWith("UPDATE market_research_runs SET status='running'")){
+        const row=this.runs.get(params[1]);
+        if(!row||row.status!=="needs_attention"||row.retry_count!==0)
+          return {meta:{changes:0}};
+        row.status="running";row.retry_count+=1;
+        return {meta:{changes:1}};
+      }
+      if(sql.startsWith("UPDATE market_research_runs")){
+        const day=params.at(-1);const row=this.runs.get(day);row.status=params[0];
+        if(params.length===6){row.report=JSON.parse(params[3]);row.error=params[4]}
+        return {meta:{changes:1}};
+      }
+      throw new Error("unexpected_sql:"+sql);
+    }})};
   }
   batch(statements){return Promise.all(statements.map(s=>s.run()))}
 }
 const clock=()=>new Date("2026-11-02T08:00:00Z");
-const pageFetch=async(url)=>{assert.equal(url,TREND_URL);return {ok:true,text:async()=>sampleHtml}};
+const briefHtml="<html><h2>Current Briefs</h2><a>sstkWinter</a><a>sstkLove</a><a>sstkLunarNewYear</a><a>sstkEidMubarak</a></html>";
+const pageFetch=async(url)=>{
+  assert.ok([TREND_URL,BRIEFS_URL].includes(url));
+  return {ok:true,text:async()=>url===TREND_URL?sampleHtml:briefHtml};
+};
 const fakeAI={run:async(_name,data)=>{
   assert.ok(data.messages[0].content.includes("Head of Microstock Market Intelligence"));
   assert.ok(data.messages[1].content.includes("new year 2027"));
@@ -88,6 +99,8 @@ test("research cycle records observed market metrics, AI brief and deduplicates 
   assert.equal(result.signals,4);
   assert.equal(context.DB.signals.size,4);
   assert.equal(context.DB.runs.get("2026-11-02").report.evidence_quality,"single_platform_search_signals_not_sales");
+  assert.equal(context.DB.runs.get("2026-11-02").report.contributor_briefs.length,4);
+  assert.equal(context.DB.runs.get("2026-11-02").report.source_diagnostics.trends,"ok");
   assert.equal(context.DB.runs.get("2026-11-02").report.shortlist.some(s=>s.keyword==="spiderman mask"),false);
   const again=await runResearchCycle(context,{now:clock,fetchImpl:pageFetch});
   assert.equal(again.status,"already_claimed");
@@ -100,6 +113,43 @@ test("AI quota failure records attention; still preserves observed source eviden
   assert.equal(result.error_code,"workers_ai_unavailable");
   assert.equal(context.DB.signals.size,4);
 });
+test("markup fallback recovers search rows when link and metrics are separate",()=>{
+  const html="<html><h1>Trending searches</h1><div>Search term Results Demand Growth</div>"+
+    "<div><a href='/images/search/3d-food'>3d food</a><span>Results: 5,120</span>"+
+    "<span>Demand: High</span><span>Growth: 315%</span></div>"+
+    "<div><a>snow globe</a><span>Results: 21,050</span><span>Demand: Low</span><span>Growth: 180%</span></div></html>";
+  const rows=parseShutterstockTrends(html);
+  assert.deepEqual(rows.map(x=>x.keyword),["3d food","snow globe"]);
+  assert.equal(rows[0].matching_results,5120);
+  assert.equal(rows[1].demand_label,"Low");
+});
+test("official contributor briefs produce qualitative evidence only",()=>{
+  const b=parseContributorBriefs(briefHtml);
+  assert.equal(b.length,4);
+  assert.equal(b[0].evidence_type,"official_editorial_brief_not_numeric_demand");
+  assert.equal(publicSourceFailure(new Error("trends_http_403"),"trends"),"trends_http_403");
+  assert.equal(publicSourceFailure(new Error("sensitive-token"),"trends"),"trends_source_unavailable");
+});
+test("trend failure with briefs available still yields cautious AI report and diagnostic",async()=>{
+  let calls=0;
+  const context=env({run:async()=>{calls++;return {response:"Editorial themes are not numeric demand. Validate stock sales."}}});
+  const degradedFetch=async(url)=>url===TREND_URL
+    ? {ok:false,status:403}
+    : {ok:true,text:async()=>briefHtml};
+  const result=await runResearchCycle(context,{now:clock,fetchImpl:degradedFetch});
+  assert.equal(result.status,"needs_attention");
+  assert.equal(result.signals,0);
+  assert.equal(result.briefs,4);
+  assert.equal(calls,1);
+  const stored=context.DB.runs.get("2026-11-02").report;
+  assert.equal(stored.source_diagnostics.trends,"trends_http_403");
+  assert.equal(stored.provenance,"observed_shutterstock_editorial_briefs_only");
+  assert.deepEqual(stored.shortlist,[]);
+  assert.ok(stored.ai_interpretation_unverified);
+  assert.equal((await runResearchCycle(context,{now:clock,fetchImpl:pageFetch})).status,"completed");
+  assert.equal(context.DB.runs.get("2026-11-02").retry_count,1);
+  assert.equal((await runResearchCycle(context,{now:clock,fetchImpl:pageFetch})).status,"already_claimed");
+});
 test("unavailable trends yields zero evidence and no AI recommendations",async()=>{
   let calls=0;
   const context=env({run:async()=>{calls++;return {response:"should-not-run"}}});
@@ -109,5 +159,6 @@ test("unavailable trends yields zero evidence and no AI recommendations",async()
   assert.equal(result.signals,0);
   assert.equal(calls,0);
   assert.deepEqual(context.DB.runs.get("2026-11-02").report.shortlist,[]);
-  assert.equal(context.DB.runs.get("2026-11-02").report.provenance,"no_live_trends_available");
+  assert.equal(context.DB.runs.get("2026-11-02").report.provenance,"no_live_market_evidence");
+  assert.equal(result.error_code,"all_market_sources_unavailable");
 });

@@ -24,4 +24,4 @@ jobs:
       - name: Test Cloudflare Worker without network or credentials
         run: node --test cloudflare/tests/*.test.mjs
       - name: Validate database SQL via local SQLite
-        run: python -c "import sqlite3; db=sqlite3.connect(':memory:'); db.executescript(open('cloudflare/migrations/0001_research.sql').read()); db.executescript(open('cloudflare/migrations/0002_market_intelligence.sql').read()); assert db.execute('select count(*) from market_research_runs').fetchone()[0]==0"
+        run: python -c "import sqlite3; db=sqlite3.connect(':memory:'); db.executescript(open('cloudflare/migrations/0001_research.sql').read()); db.executescript(open('cloudflare/migrations/0002_market_intelligence.sql').read()); db.executescript(open('cloudflare/migrations/0003_market_research_retry.sql').read()); assert db.execute('select name from pragma_table_info(\"market_research_runs\") where name=\"retry_count\"').fetchone() is not None"

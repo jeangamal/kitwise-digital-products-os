@@ -71,6 +71,17 @@ function validatedReport(raw) {
       evidence_quality:parsed.evidence_quality||null,
       model:parsed.agent||null,
       search_terms_screened:Number(parsed.search_terms_screened)||0,
+      source_diagnostics:parsed.source_diagnostics && typeof parsed.source_diagnostics==="object"
+        ? { trends:String(parsed.source_diagnostics.trends||"unknown").slice(0,80),
+            briefs:String(parsed.source_diagnostics.briefs||"unknown").slice(0,80) } : null,
+      contributor_briefs:Array.isArray(parsed.contributor_briefs)
+        ? parsed.contributor_briefs.slice(0,15).map(item=>({
+            theme:String(item.theme||"").slice(0,100),
+            tag:String(item.tag||"").slice(0,80),
+            source_url:"https://www.shutterstock.com/explore/contributor-content-briefs",
+            evidence_type:"official_editorial_brief_not_numeric_demand"
+          })) : [],
+      attempt:Number(parsed.attempt)||1,
       ai_interpretation_unverified:typeof parsed.ai_interpretation_unverified==="string"
         ? parsed.ai_interpretation_unverified.slice(0,9000):null,
       shortlist,season_calendar:seasons,
@@ -84,12 +95,13 @@ function validatedReport(raw) {
 export async function chairmanOverview(env) {
   if (!env?.DB) throw new Error("database_binding_missing");
   const { results = [] } = await env.DB.prepare(
-    "SELECT day,status,started_at,completed_at,evidence_count,error_code,report_json FROM market_research_runs ORDER BY day DESC LIMIT 10"
+    "SELECT day,status,started_at,completed_at,evidence_count,error_code,report_json,retry_count FROM market_research_runs ORDER BY day DESC LIMIT 10"
   ).all();
   const runs = results.map(row => ({
     day: row.day, status: row.status, started_at: row.started_at,
     completed_at: row.completed_at, evidence_count: Number(row.evidence_count) || 0,
-    error_code: row.error_code || null, report: validatedReport(row.report_json)
+    error_code: row.error_code || null, retry_count: Number(row.retry_count)||0,
+    report: validatedReport(row.report_json)
   }));
   const latest = runs[0] || null;
   const day = new Date().toISOString().slice(0, 10);
@@ -114,7 +126,8 @@ export async function chairmanOverview(env) {
     observed_at: new Date().toISOString(),
     research: {
       latest, runs, sources, run_count: runs.length,
-      manual_run_available: !runs.some(r => r.day === day)
+      manual_run_available: !runs.some(r => r.day === day &&
+        !(r.status === 'needs_attention' && r.retry_count === 0))
     },
     business: {
       verified_revenue: null,
