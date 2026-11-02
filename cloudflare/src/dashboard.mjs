@@ -79,7 +79,7 @@ td{color:#c9d6e8}td small{color:#889bb5;display:block}
 </aside>
 <main class="workspace">
   <header class="top">
-    <div><div class="eyebrow">KITWISE / CHAIRMAN OFFICE</div><h2>Company Command Center</h2><p>Track emerging stock-image opportunities and upcoming buying seasons. No sales predictions without real evidence.</p></div>
+    <div><div class="eyebrow">KITWISE / CHAIRMAN OFFICE</div><h2>Company Command Center</h2><p>Research stock-asset opportunities using indexed marketplace publications and upcoming buying seasons.</p></div>
     <div class="header-right"><span class="status-pill"><span class="dot"></span>Cloud pilot</span><button id="lock" class="secondary-btn hidden" type="button">Lock</button></div>
   </header>
   <section id="login" class="gate card" aria-labelledby="login-title">
@@ -94,24 +94,24 @@ td{color:#c9d6e8}td small{color:#889bb5;display:block}
     <div id="view-overview" class="view">
       <div class="grid">
         <div class="metric"><small>Research runs (recent)</small><strong id="runs-count">—</strong><span>Latest 10 recorded runs</span></div>
-        <div class="metric"><small>Market keywords checked</small><strong id="signal-count">—</strong><span>Shutterstock search-trend observations</span></div>
+        <div class="metric"><small>Public sources reviewed</small><strong id="signal-count">—</strong><span>Public publisher pages; not sales data</span></div>
         <div class="metric"><small>Verified net profit</small><strong>—</strong><span>Finance integration pending</span></div>
         <div class="metric"><small>Products selling</small><strong>—</strong><span>Marketplace data not connected</span></div>
       </div>
-      <div class="notice"><strong>Market research limitations.</strong> Shutterstock search growth, qualitative demand, and matching result counts do not establish actual sales, downloads, or a supply-demand gap. Cross-marketplace validation remains pending.</div>
+      <div class="notice"><strong>Research limitations.</strong> Publicly indexed editorial pages can inspire production experiments, but cannot prove marketplace demand, contributor downloads, competitor supply, or profitability. Direct Shutterstock data remains inaccessible.</div>
       <div class="two-col">
         <article class="card"><div class="panel-top"><h4>Latest research cycle</h4><span id="latest-state" class="badge">Awaiting data</span></div><div id="latest-day" class="big-status">No run recorded</div><p id="latest-explain">The first scheduled run may not have occurred yet.</p><div class="panel-top panel-gap"><span class="dim" id="last-updated">Not yet available</span></div><button id="trigger" class="primary-btn" type="button">Run research now</button><div id="source-status" class="dim source-status"></div><div id="trigger-message" class="error" role="status"></div></article>
         <article class="card"><div class="panel-top"><h4>AI Microstock Production Brief</h4><span class="badge">Unverified hypothesis</span></div><div id="ai-summary" class="prose">No AI research interpretation is recorded yet.</div></article>
       </div>
     </div>
     <section aria-label="Commercial opportunity shortlist">
-      <h3 class="section-title">Commercial Screening Shortlist <span class="dim">Not validated sales opportunities</span></h3>
+      <h3 class="section-title">Quantitative Demand Signals <span class="dim">Unavailable until an authorized market metrics feed is connected</span></h3>
       <div class="card tbl-wrap"><table><thead><tr><th>Stock keyword</th><th>Demand</th><th>Growth</th><th>Matching results</th><th>Season / deadline</th><th>Next action</th></tr></thead>
-        <tbody id="shortlist-table"><tr><td colspan="6">No observed market opportunities yet.</td></tr></tbody>
+        <tbody id="shortlist-table"><tr><td colspan="6">No verified demand metrics available yet.</td></tr></tbody>
       </table></div>
-      <h3 class="section-title">Official Shutterstock Contributor Briefs <span class="dim">Qualitative themes; no sales or numerical demand claims</span></h3>
-      <div class="card tbl-wrap"><table><thead><tr><th>Brief</th><th>Evidence</th><th>Source</th></tr></thead>
-        <tbody id="editorial-briefs-table"><tr><td colspan="3">No contributor briefs retrieved yet.</td></tr></tbody>
+      <h3 class="section-title">Indexed Official Marketplace Sources <span class="dim">Source-backed editorial evidence; not sales data</span></h3>
+      <div class="card tbl-wrap"><table><thead><tr><th>Publisher</th><th>Indexed article</th><th>Source</th></tr></thead>
+        <tbody id="editorial-briefs-table"><tr><td colspan="3">No indexed marketplace pages retrieved yet.</td></tr></tbody>
       </table></div>
       <h3 class="section-title">Upcoming Buying Seasons <span class="dim">Plan and upload well before each event</span></h3>
       <div class="card tbl-wrap"><table><thead><tr><th>Season</th><th>Event date</th><th>Suggested upload by</th><th>Production window</th></tr></thead>
@@ -121,8 +121,8 @@ td{color:#c9d6e8}td small{color:#889bb5;display:block}
     <div id="view-research" class="view hidden">
       <h3 class="section-title">Research history</h3>
       <div class="card tbl-wrap"><table><thead><tr><th>UTC day</th><th>Outcome</th><th>Signals</th><th>Reason</th></tr></thead><tbody id="runs-table"><tr><td colspan="4">No research runs recorded.</td></tr></tbody></table></div>
-      <h3 class="section-title">Latest marketplace observations <span class="dim">Source: Shutterstock public trends</span></h3>
-      <div class="card tbl-wrap"><table><thead><tr><th>Keyword</th><th>Observed trend signal</th><th>Checked (UTC)</th></tr></thead><tbody id="sources-table"><tr><td colspan="3">No live microstock evidence recorded.</td></tr></tbody></table></div>
+      <h3 class="section-title">Research source ledger <span class="dim">Publicly indexed Shutterstock / Adobe pages</span></h3>
+      <div class="card tbl-wrap"><table><thead><tr><th>Research topic</th><th>Indexed page</th><th>Retrieved (UTC)</th></tr></thead><tbody id="sources-table"><tr><td colspan="3">No public marketplace pages indexed.</td></tr></tbody></table></div>
     </div>
     <div id="view-departments" class="view hidden">
       <h3 class="section-title">AI company departments</h3>
@@ -149,11 +149,11 @@ function render(){
   setText("runs-count",runs.length);setText("signal-count",latest?latest.evidence_count:"—");
   badge("latest-state",latest?latest.status:"awaiting_first_run");
   setText("latest-day",latest?latest.day:"No run recorded");
-  setText("latest-explain",latest?(latest.status==="completed"?"Stock-trend analysis completed; sales and competitor validation is still required.":latest.status==="running"?"Research is processing. Refresh to check results.":"This cycle needs attention: "+(latest.error_code||"unknown reason")):"No microstock research run yet. You can initiate one with the button below.");
+  setText("latest-explain",latest?(latest.status==="completed"?"Indexed research complete. This is editorial evidence, not proven microstock sales.":latest.status==="running"?"Research is processing. Refresh to check results.":"This cycle needs attention: "+(latest.error_code||"unknown reason")):"No microstock research run yet. You can initiate one with the button below.");
   setText("last-updated",latest&&latest.completed_at?"Completed: "+new Date(latest.completed_at).toLocaleString():"No completed run");
   setText("ai-summary",latest&&latest.report&&latest.report.ai_interpretation_unverified?latest.report.ai_interpretation_unverified:"No successful AI interpretation recorded yet.");
   var diag=latest&&latest.report&&latest.report.source_diagnostics;
-  setText("source-status",diag?"Source checks — trends: "+diag.trends+"; contributor briefs: "+diag.briefs:"Source checks not yet available.");
+  setText("source-status",diag?"Indexed search: "+diag.indexed_search+"; direct Shutterstock: "+diag.direct_shutterstock:"Source checks not yet available.");
 
   $("trigger").disabled=!r.manual_run_available;
   $("trigger").textContent=r.manual_run_available?"Run research / retry failed cycle":"Daily attempt limit reached";
@@ -169,14 +169,15 @@ function render(){
     cell(line,String(item.decision).replace(/_/g," "));shortlist.appendChild(line);
   });
   var editorial=$("editorial-briefs-table");editorial.replaceChildren();
-  var briefs=latest&&latest.report&&Array.isArray(latest.report.contributor_briefs)?latest.report.contributor_briefs:[];
-  if(!briefs.length){var er=document.createElement("tr");var ec=cell(er,"No current contributor briefs accessible.");ec.colSpan=3;editorial.appendChild(er)}
-  briefs.forEach(function(item){
-    var row=document.createElement("tr");cell(row,item.theme);cell(row,"Official editorial brief; no numeric trend metrics");
-    var c=document.createElement("td");var a=document.createElement("a");
-    a.href="https://www.shutterstock.com/explore/contributor-content-briefs";
-    a.target="_blank";a.rel="noopener noreferrer";a.textContent="View source";c.appendChild(a);row.appendChild(c);
-    editorial.appendChild(row);
+  if(!sources.length){var er=document.createElement("tr");var ec=cell(er,"No authorized research provider connected or no indexed documents.");ec.colSpan=3;editorial.appendChild(er)}
+  sources.forEach(function(item){
+    var row=document.createElement("tr");cell(row,item.source);
+    var titleCell=document.createElement("td");titleCell.textContent=item.title;row.appendChild(titleCell);
+    var c=document.createElement("td");
+    if(item.url && /^https:\/\/([a-z0-9-]+\.)*(adobe|shutterstock)\.com\//i.test(item.url)){
+      var a=document.createElement("a");a.href=item.url;a.target="_blank";a.rel="noopener noreferrer";a.textContent="View original";c.appendChild(a);
+    }else{c.textContent="Unavailable"}
+    row.appendChild(c);editorial.appendChild(row);
   });
   var seasonTable=$("season-table");seasonTable.replaceChildren();
   var seasons=latest&&latest.report&&Array.isArray(latest.report.season_calendar)?latest.report.season_calendar:[];
@@ -189,10 +190,10 @@ function render(){
   if(!runs.length){var row=document.createElement("tr");cell(row,"No research runs recorded.");history.appendChild(row)}
   runs.forEach(function(item){var row=document.createElement("tr");cell(row,item.day);cell(row,item.status);cell(row,item.evidence_count);cell(row,item.error_code||"—");history.appendChild(row)});
   var list=$("sources-table");list.replaceChildren();
-  if(!sources.length){var rr=document.createElement("tr");cell(rr,"No trend observations recorded.");list.appendChild(rr)}
+  if(!sources.length){var rr=document.createElement("tr");cell(rr,"No indexed sources recorded.");list.appendChild(rr)}
   sources.forEach(function(item){
     var row=document.createElement("tr");cell(row,item.topic);
-    var c=document.createElement("td");if(typeof item.url==="string" && /^https:\/\/www\.shutterstock\.com\/trends$/.test(item.url)){
+    var c=document.createElement("td");if(typeof item.url==="string" && /^https:\/\/([a-z0-9-]+\.)*(adobe|shutterstock)\.com\//i.test(item.url)){
       var a=document.createElement("a");a.href=item.url;a.target="_blank";a.rel="noopener noreferrer";a.textContent=item.title;c.appendChild(a);
     }else{c.textContent=item.title}row.appendChild(c);cell(row,item.published_at||"—");list.appendChild(row);
   });
