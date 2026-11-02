@@ -72,8 +72,10 @@ function validatedReport(raw) {
       model:parsed.agent||null,
       search_terms_screened:Number(parsed.search_terms_screened)||0,
       source_diagnostics:parsed.source_diagnostics && typeof parsed.source_diagnostics==="object"
-        ? { trends:String(parsed.source_diagnostics.trends||"unknown").slice(0,80),
-            briefs:String(parsed.source_diagnostics.briefs||"unknown").slice(0,80) } : null,
+        ? { indexed_search:String(parsed.source_diagnostics.indexed_search||"unknown").slice(0,80),
+            direct_shutterstock:String(parsed.source_diagnostics.direct_shutterstock||"disabled").slice(0,80)} : null,
+      indexed_source_count:Number(parsed.indexed_source_count)||0,
+      source_failures:Array.isArray(parsed.source_failures)?parsed.source_failures.slice(0,8).map(String):[],
       contributor_briefs:Array.isArray(parsed.contributor_briefs)
         ? parsed.contributor_briefs.slice(0,15).map(item=>({
             theme:String(item.theme||"").slice(0,100),
@@ -95,7 +97,7 @@ function validatedReport(raw) {
 export async function chairmanOverview(env) {
   if (!env?.DB) throw new Error("database_binding_missing");
   const { results = [] } = await env.DB.prepare(
-    "SELECT day,status,started_at,completed_at,evidence_count,error_code,report_json,retry_count FROM market_research_runs ORDER BY day DESC LIMIT 10"
+    "SELECT day,status,started_at,completed_at,document_count AS evidence_count,error_code,report_json,retry_count FROM indexed_research_runs ORDER BY day DESC LIMIT 10"
   ).all();
   const runs = results.map(row => ({
     day: row.day, status: row.status, started_at: row.started_at,
@@ -108,21 +110,27 @@ export async function chairmanOverview(env) {
   let sources = [];
   if (latest) {
     const r = await env.DB.prepare(
-      "SELECT keyword,matching_results,demand_label,growth_percent,source_url FROM market_research_signals WHERE run_day=? ORDER BY keyword LIMIT 100"
+      "SELECT title,url,source,query_id,retrieved_at,evidence_type FROM indexed_research_sources WHERE run_day=? ORDER BY query_id,title LIMIT 30"
     ).bind(latest.day).all();
-    sources = (r.results || []).map(item => ({
-      topic: String(item.keyword).slice(0,100),
-      title: String(item.keyword).slice(0,100) + " — Demand: " + item.demand_label +
-        "; Growth: " + item.growth_percent + "%; Results: " + item.matching_results,
-      source: "shutterstock_public_trends",
-      url: item.source_url === "https://www.shutterstock.com/trends" ? item.source_url : null,
-      published_at: latest.day,
-      demand_label: item.demand_label, growth_percent: item.growth_percent,
-      matching_results: item.matching_results
-    }));
+    sources=(r.results||[]).map(item=>{
+      let safeUrl=null;
+      try {
+        const u=new URL(String(item.url));
+        if(u.protocol==="https:"&&/(^|\.)((adobe|shutterstock)\.com)$/i.test(u.hostname))
+          safeUrl=u.href;
+      }catch(_){}
+      return {
+        topic:String(item.query_id).slice(0,80),
+        title:String(item.title).slice(0,220),
+        source:String(item.source).slice(0,70),
+        url:safeUrl,
+        published_at:String(item.retrieved_at||"").slice(0,32),
+        evidence_type:"search_indexed_official_page_not_sales"
+      };
+    });
   }
   return {
-    product: "Kitwise Company OS", version: "0.3-microstock",
+    product: "Kitwise Company OS", version: "0.5-indexed-microstock",
     observed_at: new Date().toISOString(),
     research: {
       latest, runs, sources, run_count: runs.length,
