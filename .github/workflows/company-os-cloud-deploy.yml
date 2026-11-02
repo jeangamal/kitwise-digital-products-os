@@ -69,6 +69,18 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "$KITWISE_CHAIRMAN_KEY" | ./cloudflare/node_modules/.bin/wrangler secret put CHAIRMAN_DASHBOARD_KEY --config cloudflare/wrangler.json > /dev/null
+      - name: Configure private indexed research API key when available
+        shell: bash
+        env:
+          KITWISE_TAVILY_API_KEY: ${{ secrets.KITWISE_TAVILY_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$KITWISE_TAVILY_API_KEY" ]]; then
+            printf '%s' "$KITWISE_TAVILY_API_KEY" | ./cloudflare/node_modules/.bin/wrangler secret put TAVILY_API_KEY --config cloudflare/wrangler.json > /dev/null
+            echo "Private indexed search connection configured." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Indexed search is not configured. Add KITWISE_TAVILY_API_KEY as a repository secret to enable live research." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Explain first-time activation
         if: success()
         run: |
