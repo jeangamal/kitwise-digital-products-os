@@ -48,7 +48,7 @@ export async function runResearchCycle(env,options={}) {
     if(docs.length){
       const writes=docs.map((d,i)=>env.DB.prepare(
         "INSERT OR IGNORE INTO indexed_research_sources (id,run_day,title,url,excerpt,source,query_id,retrieved_at,evidence_type) VALUES (?,?,?,?,?,?,?,?,?)"
-      ).bind(day+":"+i,day,d.title,d.url,d.excerpt,d.source,d.query_id,d.retrieved_at,d.evidence_type));
+      ).bind(day+":"+d.url,day,d.title,d.url,d.excerpt,d.source,d.query_id,d.retrieved_at,d.evidence_type));
       await env.DB.batch(writes);
     }
     let interpretation=null;
