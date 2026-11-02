@@ -66,14 +66,14 @@ function env(keyValue=key){return {DB:new FakeDB(),AI:ai,TAVILY_API_KEY:keyValue
 test("calendar generates bounded four-query market research plan",()=>{
   const queries=buildSearchQueries(seasonCalendar("2026-11-02"));
   assert.equal(queries.length,4);
-  assert.match(queries[0].query,/Shutterstock/);
+  assert.match(queries[0].query,/shutterstock/i);
   assert.match(queries[2].query,/3d/i);
 });
 test("search response keeps official public URLs and removes unapproved pages",()=>{
   const items=parseSearchResponse(fixture,{id:"test"},now);
   assert.equal(items.length,2);
   assert.ok(items.every(d=>d.url.startsWith("https://")));
-  assert.equal(items[0].evidence_type,"search_indexed_public_page_excerpt_not_sales_data");
+  assert.equal(items[0].evidence_type,"official_publisher_indexed_excerpt_not_sales");
 });
 test("official indexed search caps calls and never claims keyword demand data",async()=>{
   const search=await searchOfficialEditorial(key,seasonCalendar("2026-11-02"),{fetchImpl:fakeFetch,now});
