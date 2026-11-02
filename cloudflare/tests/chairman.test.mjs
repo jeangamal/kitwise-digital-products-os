@@ -18,19 +18,19 @@ function envWithRows(rows = []) {
     CHAIRMAN_DASHBOARD_KEY: GOOD,
     DB: {
       prepare(sql) {
-        if (sql.includes("FROM market_research_runs")) return {
+        if (sql.includes("FROM indexed_research_runs")) return {
           all: async () => ({ results: rows })
         };
-        if (sql.includes("FROM market_research_signals")) return {
+        if (sql.includes("FROM indexed_research_sources")) return {
           bind: () => ({ all: async () => ({ results: [
-            { keyword: "test keyword", matching_results: 5000, demand_label: "Low",
-              growth_percent: 120, source_url: "javascript:alert(1)" },
-            { keyword: "new year 2027", matching_results: 41736, demand_label: "High",
-              growth_percent: 98, source_url: "https://www.shutterstock.com/trends" }
+            { title:"Untrusted page",url:"javascript:alert(1)",source:"shutterstock.com",
+              query_id:"shutterstock-customer-brief",retrieved_at:"2026-11-02" },
+            { title:"Stock contributor seasonal briefs",url:"https://submit.shutterstock.com/help/en/articles/10594691-what-type-of-content-are-shutterstock-customers-looking-for",
+              source:"submit.shutterstock.com",query_id:"shutterstock-customer-brief",retrieved_at:"2026-11-02" }
           ] }) })
         };
         if (sql.startsWith("INSERT OR IGNORE") ||
-            sql.startsWith("UPDATE market_research_runs SET status='running'")) return {
+            sql.startsWith("UPDATE indexed_research_runs SET status='running'")) return {
           bind: () => ({ run: async () => ({ meta: { changes: 0 } }) })
         };
         throw new Error("unexpected_query");
@@ -47,8 +47,9 @@ const row = {
     missing: ["verified_buyer_intent", "marketplace_sales"],
     provenance: "live_public_discussion_signals",
     agent: "@cf/zai-org/glm-4.7-flash",
-    version: "microstock-v0.3",
-    shortlist: [{keyword:"new year 2027",matching_results:41736,demand_label:"High",growth_percent:98,triage_index:25,decision:"research_before_build"}],
+    version: "microstock-indexed-v0.5",indexed_source_count:2,
+    source_diagnostics:{indexed_search:"ok",direct_shutterstock:"disabled_after_http_403"},
+    shortlist: [],
     season_calendar: [{name:"Valentine\u0027s Day",date:"2027-02-14",days_until:104,suggested_upload_by:"2026-12-01",production_status:"prepare_and_upload_now"}]
   })
 };
@@ -90,10 +91,10 @@ test("valid chairman credential reads only private reports and sanitizes source 
   assert.equal(res.status, 200);
   const data = await res.json();
   assert.equal(data.research.latest.evidence_count, 8);
-  assert.equal(data.research.latest.report.shortlist[0].keyword, "new year 2027");
+  assert.equal(data.research.latest.report.indexed_source_count,2);
   assert.equal(data.research.latest.report.ai_interpretation_unverified, "Possible opportunity; buyer validation required.");
   assert.equal(data.research.sources[0].url, null);
-  assert.equal(data.research.sources[1].url, "https://www.shutterstock.com/trends");
+  assert.match(data.research.sources[1].url, /^https:\/\/submit.shutterstock.com\/help\//);
   assert.equal(data.business.verified_profit, null);
   assert.equal(data.departments.find(d => d.name === "Product Operations").implemented, false);
   assert.equal(data.departments.find(d => d.name === "Microstock Market Intelligence").implemented, true);
