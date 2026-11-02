@@ -3,7 +3,7 @@
 Kitwise is an autonomous digital-products business operating-system project. The company control plane is under active development; it is **not yet** a fully functioning multi-agent business.
 
 - **Company OS v0.1:** role permissions, task ledger, evidence tracking, basic CEO-to-Research workflow. See [Charter](docs/company-os/CHARTER.md) and [Architecture](docs/company-os/ARCHITECTURE.md).
-- **Microstock Research v0.3:** a redesigned market-specific AI research job using Shutterstock public trend metrics, seasonal production planning, and an explicit commercial asset brief. Existing HN pilot reports remain historical; v0.3 runs only after the next manual cloud deployment. See [Research mandate](docs/company-os/MICROSTOCK_RESEARCH.md) and [Cloudflare setup](docs/company-os/CLOUDFLARE_SETUP.md).
+- **Microstock Research v0.5:** public Shutterstock/Adobe editorial research through an authorized indexed search API, following repeated **HTTP 403** responses to direct Shutterstock page fetches. Keeps historical unsuccessful runs separately. Seasonal intelligence, evidenced sources and bounded AI production test hypotheses. See [Indexed Research setup](docs/company-os/INDEXED_RESEARCH_SETUP.md). This requires a separate optional Tavily API key; no live v0.5 run has yet been verified.
 - **Chairman Dashboard v0.2:** private source-backed research reports, department status and protected on-demand research. See [Chairman Dashboard setup](docs/company-os/CHAIRMAN_DASHBOARD.md). The dashboard code requires a manual deployment and separate chairman key to unlock.
 - **Existing stock-upload worker:** GitHub Actions + Python + Google Drive; transfers are NOT marketplace submissions and live connections must be configured. See below.
 
