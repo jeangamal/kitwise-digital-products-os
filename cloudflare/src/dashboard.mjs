@@ -46,7 +46,7 @@ p{margin:0;color:#9fadc2;line-height:1.65}.header-right{display:flex;align-items
 .metric span{font-size:11px;color:#8091ad}
 .section-title{font-size:18px;margin:30px 0 15px;display:flex;justify-content:space-between;gap:12px;align-items:center}
 .two-col{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:16px}
-.panel-gap{margin-top:22px}.panel-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.panel-gap{margin-top:22px}.source-status{margin-top:14px}.panel-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
 .panel-top h4{margin:0;font-size:15px}.dim{font-size:12px;color:#8597b1}
 .big-status{font-size:23px;color:#edf4ff;margin:8px 0}
 .badge{padding:5px 9px;background:#1f3854;border-radius:50px;font-size:11px;color:#bad7f8}
@@ -100,7 +100,7 @@ td{color:#c9d6e8}td small{color:#889bb5;display:block}
       </div>
       <div class="notice"><strong>Market research limitations.</strong> Shutterstock search growth, qualitative demand, and matching result counts do not establish actual sales, downloads, or a supply-demand gap. Cross-marketplace validation remains pending.</div>
       <div class="two-col">
-        <article class="card"><div class="panel-top"><h4>Latest research cycle</h4><span id="latest-state" class="badge">Awaiting data</span></div><div id="latest-day" class="big-status">No run recorded</div><p id="latest-explain">The first scheduled run may not have occurred yet.</p><div class="panel-top panel-gap"><span class="dim" id="last-updated">Not yet available</span></div><button id="trigger" class="primary-btn" type="button">Run research now</button><div id="trigger-message" class="error" role="status"></div></article>
+        <article class="card"><div class="panel-top"><h4>Latest research cycle</h4><span id="latest-state" class="badge">Awaiting data</span></div><div id="latest-day" class="big-status">No run recorded</div><p id="latest-explain">The first scheduled run may not have occurred yet.</p><div class="panel-top panel-gap"><span class="dim" id="last-updated">Not yet available</span></div><button id="trigger" class="primary-btn" type="button">Run research now</button><div id="source-status" class="dim source-status"></div><div id="trigger-message" class="error" role="status"></div></article>
         <article class="card"><div class="panel-top"><h4>AI Microstock Production Brief</h4><span class="badge">Unverified hypothesis</span></div><div id="ai-summary" class="prose">No AI research interpretation is recorded yet.</div></article>
       </div>
     </div>
@@ -108,6 +108,10 @@ td{color:#c9d6e8}td small{color:#889bb5;display:block}
       <h3 class="section-title">Commercial Screening Shortlist <span class="dim">Not validated sales opportunities</span></h3>
       <div class="card tbl-wrap"><table><thead><tr><th>Stock keyword</th><th>Demand</th><th>Growth</th><th>Matching results</th><th>Season / deadline</th><th>Next action</th></tr></thead>
         <tbody id="shortlist-table"><tr><td colspan="6">No observed market opportunities yet.</td></tr></tbody>
+      </table></div>
+      <h3 class="section-title">Official Shutterstock Contributor Briefs <span class="dim">Qualitative themes; no sales or numerical demand claims</span></h3>
+      <div class="card tbl-wrap"><table><thead><tr><th>Brief</th><th>Evidence</th><th>Source</th></tr></thead>
+        <tbody id="editorial-briefs-table"><tr><td colspan="3">No contributor briefs retrieved yet.</td></tr></tbody>
       </table></div>
       <h3 class="section-title">Upcoming Buying Seasons <span class="dim">Plan and upload well before each event</span></h3>
       <div class="card tbl-wrap"><table><thead><tr><th>Season</th><th>Event date</th><th>Suggested upload by</th><th>Production window</th></tr></thead>
@@ -148,8 +152,11 @@ function render(){
   setText("latest-explain",latest?(latest.status==="completed"?"Stock-trend analysis completed; sales and competitor validation is still required.":latest.status==="running"?"Research is processing. Refresh to check results.":"This cycle needs attention: "+(latest.error_code||"unknown reason")):"No microstock research run yet. You can initiate one with the button below.");
   setText("last-updated",latest&&latest.completed_at?"Completed: "+new Date(latest.completed_at).toLocaleString():"No completed run");
   setText("ai-summary",latest&&latest.report&&latest.report.ai_interpretation_unverified?latest.report.ai_interpretation_unverified:"No successful AI interpretation recorded yet.");
+  var diag=latest&&latest.report&&latest.report.source_diagnostics;
+  setText("source-status",diag?"Source checks — trends: "+diag.trends+"; contributor briefs: "+diag.briefs:"Source checks not yet available.");
+
   $("trigger").disabled=!r.manual_run_available;
-  $("trigger").textContent=r.manual_run_available?"Run research now":"Today’s research already claimed";
+  $("trigger").textContent=r.manual_run_available?"Run research / retry failed cycle":"Daily attempt limit reached";
   var shortlist=$("shortlist-table");shortlist.replaceChildren();
   var shortlistItems=latest&&latest.report&&Array.isArray(latest.report.shortlist)?latest.report.shortlist:[];
   if(!shortlistItems.length){var emptyS=document.createElement("tr");var es=cell(emptyS,"No shortlisted trend-backed ideas yet.");es.colSpan=6;shortlist.appendChild(emptyS)}
@@ -160,6 +167,16 @@ function render(){
     cell(line,Number(item.matching_results).toLocaleString());
     cell(line,item.season?item.season.name+" / "+item.season.suggested_upload_by:"Evergreen / to validate");
     cell(line,String(item.decision).replace(/_/g," "));shortlist.appendChild(line);
+  });
+  var editorial=$("editorial-briefs-table");editorial.replaceChildren();
+  var briefs=latest&&latest.report&&Array.isArray(latest.report.contributor_briefs)?latest.report.contributor_briefs:[];
+  if(!briefs.length){var er=document.createElement("tr");var ec=cell(er,"No current contributor briefs accessible.");ec.colSpan=3;editorial.appendChild(er)}
+  briefs.forEach(function(item){
+    var row=document.createElement("tr");cell(row,item.theme);cell(row,"Official editorial brief; no numeric trend metrics");
+    var c=document.createElement("td");var a=document.createElement("a");
+    a.href="https://www.shutterstock.com/explore/contributor-content-briefs";
+    a.target="_blank";a.rel="noopener noreferrer";a.textContent="View source";c.appendChild(a);row.appendChild(c);
+    editorial.appendChild(row);
   });
   var seasonTable=$("season-table");seasonTable.replaceChildren();
   var seasons=latest&&latest.report&&Array.isArray(latest.report.season_calendar)?latest.report.season_calendar:[];
