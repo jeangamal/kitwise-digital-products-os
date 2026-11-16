@@ -259,7 +259,7 @@ function renderProduction(){
   assetUrls.forEach(function(url){URL.revokeObjectURL(url)});assetUrls=[];
   (p.jobs||[]).forEach(function(job){
     var line=document.createElement("div");line.className="list-line";
-    var label=document.createElement("span");label.textContent=(job.metadata&&job.metadata.title||job.id)+" — "+String(job.status).replace(/_/g," ")+"; "+(job.width||"?")+" × "+(job.height||"?");
+    var label=document.createElement("span");label.textContent=(job.qa&&job.qa.origin==="direct_api_smoke_test_not_scheduled_pipeline"?"Direct API sample: ":"")+(job.metadata&&job.metadata.title||job.id)+" — "+String(job.status).replace(/_/g," ")+"; "+(job.width||"?")+" × "+(job.height||"?");
     line.appendChild(label);
     if(job.metadata){
       var metadata=document.createElement("p");metadata.textContent=job.metadata.description+" Keywords: "+(job.metadata.keywords||[]).join(", ");line.appendChild(metadata);
