@@ -11,7 +11,7 @@
 
 ## Incomplete and access gaps
 
-- Repair is proposed code; production has not been deployed or changed. Production Worker-binding behavior and the next scheduled cycle need verification after approved deployment. Direct REST inference does not establish that the deployed binding is repaired.
+- Research repair PR #8 was merged as e212da5783d8122391c20059b41309d72909f708 and deployed with owner approval as Worker version 57a2395b-8577-43aa-a773-cbd9c550e03a. The owner-triggered November 16 cycle has since completed successfully; see production continuation below. Earlier pre-release statements describe historical work.
 - The master instructions were unavailable during the initial repair. **Resolved later in this session:** both complete master instructions and Kitwise_Codex_Handover.md were attached and read. BUSINESS_CONTEXT.md now records the reconciled operating context and source hashes; originals remain session attachments.
 - Browser access to the deployed dashboard has not been verified; unit tests establish local authentication behavior only.
 - Product production, publishing, finance and verified buyer demand remain incomplete. No new commercial validation is claimed. R2/Workflows were not required or enabled for this repair; their prior audit status was not reverified.
@@ -19,7 +19,7 @@
 
 ## Next priority
 
-Review the updated repair PR and obtain scoped Chairman approval for merging and deploying the reviewed revision to the existing Worker. Preserve DB and secrets; no migration is needed. Follow RESEARCH_RELEASE_CHECKLIST.md, observe the next scheduled cycle or use the authenticated dashboard only within the existing claim/retry budget. Inspect curated_research_runs status/error_code and report_json.ai_diagnostics in private D1. Do not delete historical failed runs to force reruns. A completed synthesis still does not validate demand or authorize production/publication.
+Complete the owner-authorized free-plan production pilot deployment/test described below, then resolve real image quality/upscaling and marketplace transfer configuration. Do not clear successful daily research claims to test production. Generation, review, transfer, portal submission and sales are separate outcomes. Production cannot be called fully autonomous sales until those integrations and their actual results are verified.
 
 Additional regression check: Python suite ran 38 tests, 37 passed and one ExifTool integration test skipped because ExifTool is absent locally. Dependencies were installed in an isolated workspace virtual environment after the initial run found requests missing. Uploader source and receipt files remain unchanged.
 
@@ -43,3 +43,5 @@ After approved live research verification, the next implementation priority is t
 - Production uses conservative local reservations and a three-preview backlog stop, daily reset/cooldowns, monthly transform reservations and capped durable asset capacity. Do not equate local reservation totals with measured global remaining Cloudflare credits.
 - R2 is not enabled; a free-plan KV preview spool is the chosen small-pilot alternative. Images Free plan/support still needs separate confirmation/testing. GitHub Actions secret/variable metadata is inaccessible (403); do not infer actual contributor connection readiness.
 - See CLOUDFLARE_PRODUCTION_PILOT.md for configuration, sources, limitations and tests. Commercial quality, exact high-volume search terms, production-grade upscaling and automated marketplace submission remain unverified.
+
+Further verified facts: the owner separately confirmed Images Free. A private Workers KV namespace `kitwise-production-assets` was created under the existing account for a capped preview spool; no R2 or paid plan enabled. A manual existing-uploader readiness run (43785061464) reported all four uploader secrets missing: KITWISE_STATE_KEY, KITWISE_GOOGLE_CREDENTIALS, KITWISE_DRIVE_FOLDER_ID and KITWISE_TARGETS_JSON. Actual connection/transfer steps were skipped. This is an established configuration blocker, not a successful transfer or proof of invalid credentials. Configure these only through secure repository settings; never request their values in chat.
