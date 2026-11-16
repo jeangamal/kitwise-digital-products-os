@@ -11,7 +11,7 @@
 
 ## Incomplete and access gaps
 
-- Repair is proposed code; production has not been deployed or changed. Production Worker-binding behavior and the next scheduled cycle need verification after approved deployment. Direct REST inference does not establish that the deployed binding is repaired.
+- **Repair deployed with explicit owner approval; see release record below.** A successful production research cycle and authenticated browser verification remain outstanding. Direct REST inference and code deployment alone do not establish a completed cycle.
 - The master instructions were unavailable during the initial repair. **Resolved later in this session:** both complete master instructions and Kitwise_Codex_Handover.md were attached and read. BUSINESS_CONTEXT.md now records the reconciled operating context and source hashes; originals remain session attachments.
 - Browser access to the deployed dashboard has not been verified; unit tests establish local authentication behavior only.
 - Product production, publishing, finance and verified buyer demand remain incomplete. No new commercial validation is claimed. R2/Workflows were not required or enabled for this repair; their prior audit status was not reverified.
@@ -19,7 +19,7 @@
 
 ## Next priority
 
-Review the updated repair PR and obtain scoped Chairman approval for merging and deploying the reviewed revision to the existing Worker. Preserve DB and secrets; no migration is needed. Follow RESEARCH_RELEASE_CHECKLIST.md, observe the next scheduled cycle or use the authenticated dashboard only within the existing claim/retry budget. Inspect curated_research_runs status/error_code and report_json.ai_diagnostics in private D1. Do not delete historical failed runs to force reruns. A completed synthesis still does not validate demand or authorize production/publication.
+Verify the deployed research repair in the owner's actual browser and the next allowed manual or scheduled cycle. The current execution environment receives HTTP 403 / Cloudflare error 1010 on public routes; do not bypass this restriction or change access policy to test. The owner can open the existing dashboard, unlock with their existing key privately, use an allowed manual run and refresh. Alternatively inspect the next daily cron outcome in D1 at 07:17 UTC (09:17 Cairo on November 16). Preserve all claims/history and do not manufacture a retry. A completed synthesis still does not validate demand or authorize production/publication.
 
 Additional regression check: Python suite ran 38 tests, 37 passed and one ExifTool integration test skipped because ExifTool is absent locally. Dependencies were installed in an isolated workspace virtual environment after the initial run found requests missing. Uploader source and receipt files remain unchanged.
 
@@ -32,4 +32,15 @@ Additional regression check: Python suite ran 38 tests, 37 passed and one ExifTo
 - Added BUSINESS_CONTEXT.md and the release/rollback checklist. Original attachments and private historical details were not published into the public repository.
 - PR #7 adoption blocker: its netProfitPerHour currently counts only build_hours + support_hours; the master requires research, validation, QA, listing, monitoring and maintenance too. Factor references also accept any valid evidence ID rather than checking relevance to the scored dimension. Review these before wiring its outputs into any decision workflow. No actual portfolio inventory, earnings extract or total-time log is available, so commercial validation/profit remain unknown.
 
-After approved live research verification, the next implementation priority is to repair and exercise the offline commercial decision contract with complete total-hour accounting and an authorized private input/export, preserving unknown values and independent publishing/spending approval.
+After successful live research verification, the next implementation priority is to repair and exercise the offline commercial decision contract with complete total-hour accounting and an authorized private input/export, preserving unknown values and independent publishing/spending approval.
+
+## Approved production release — 16 November 2026
+
+- Owner explicitly requested adding the changes to Cloudflare. PR #8 merged as `e212da5783d8122391c20059b41309d72909f708`; reviewed head `ff60e336d47458ab6c264af9ad3e32bf1771e7d3` had all GitHub CI checks green.
+- Uploaded the five unchanged source modules from that merged revision through the connected Cloudflare Workers API. Used `keep_bindings: ["secret_text"]`; retained existing compatibility date, observability, usage model and bindings. Did not run the generic workflow's database creation, migrations or secret-writing steps.
+- Deployed Worker version: `57a2395b-8577-43aa-a773-cbd9c550e03a`, deployment `f71cf241-662c-4b16-a3c3-2eaf24a4c7fa`, 100% traffic, created 2026-11-16 00:37:32 UTC (02:37:32 Cairo). Release annotation names the full Git revision.
+- Prior rollback version: `5a5ae2ab-8b50-4f1f-8ae4-b1975b6325a9`, prior deployment `e7efa74c-1219-4cbe-b17b-3627eb4fe3bc`. Rollback, if necessary, must preserve D1/secrets and the claim budget.
+- Read-only post-deploy checks confirmed same D1 ID, AI and both existing secret binding names, same `17 7 * * *` cron, all five existing migrations. Downloaded deployed source through the authenticated account API and confirmed thinking disabled, private diagnostic projection, dashboard diagnostics and research-brief title.
+- D1 remains at 14 historical curated runs (zero completed), 66 retained source rows, no current-day claim. Inspection queries wrote zero rows. No research run was triggered during deployment; existing access key was not retrieved, rotated or replaced.
+- Public checks of /health, /dashboard and unauthenticated /api/overview all returned HTTP 403 with Cloudflare error 1010 from this execution environment. This blocks live route/auth/browser verification here; it is not a verified Worker-level 401 or proof the owner browser is blocked. Access policy was not changed and no alternate identity/network was used.
+- Technical verdict: code deployment and configuration preservation verified. Successful scheduled/manual research and user-facing authenticated dashboard remain unverified. Commercial verdict: demand, revenue and profit remain unknown. Earlier no-deployment statements above describe pre-release work only and are superseded by this release record.
