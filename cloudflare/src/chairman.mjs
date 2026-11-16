@@ -40,6 +40,22 @@ export async function authorizeChairman(request, env) {
   return difference === 0 ? "authorized" : "unauthorized";
 }
 
+function validatedAiDiagnostics(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const outcomes = ["ok", "not_attempted", "ai_empty_response", "ai_output_truncated",
+    "ai_auth_error", "ai_quota_or_rate_limit", "ai_provider_unavailable", "ai_unavailable"];
+  if (!outcomes.includes(value.outcome)) return null;
+  return {
+    outcome: value.outcome,
+    finish_reason: ["stop", "length", "content_filter", "tool_calls"].includes(value.finish_reason)
+      ? value.finish_reason : null,
+    final_text_present: typeof value.final_text_present === "boolean" ? value.final_text_present : null,
+    reasoning_present: typeof value.reasoning_present === "boolean" ? value.reasoning_present : null,
+    http_status: Number.isInteger(value.http_status) && value.http_status >= 400 && value.http_status <= 599
+      ? value.http_status : null
+  };
+}
+
 function validatedReport(raw) {
   if (typeof raw !== "string" || raw.length > 85000) return null;
   try {
@@ -98,6 +114,7 @@ function validatedReport(raw) {
       attempt:Number(parsed.attempt)||1,
       ai_interpretation_unverified:typeof parsed.ai_interpretation_unverified==="string"
         ? parsed.ai_interpretation_unverified.slice(0,9000):null,
+      ai_diagnostics:validatedAiDiagnostics(parsed.ai_diagnostics),
       shortlist,season_calendar:seasons,
       source_url:"https://www.shutterstock.com/trends",
       missing:Array.isArray(parsed.missing)?parsed.missing.slice(0,20).map(String):[],

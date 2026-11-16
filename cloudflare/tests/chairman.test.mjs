@@ -127,3 +127,96 @@ test("health remains public but does not include researcher records", async () =
   assert.equal(res.status, 200);
   assert.equal((await res.json()).user_data_exposed, false);
 });
+
+const diagnosticRow = diagnostics => ({...row, status:"needs_attention",
+  report_json:JSON.stringify({...JSON.parse(row.report_json),ai_diagnostics:diagnostics})});
+
+test("private overview exposes only allowlisted AI diagnostics",async()=>{
+  const diagnostics={outcome:"ai_output_truncated",finish_reason:"length",
+    final_text_present:false,reasoning_present:true,http_status:429,
+    message:"PRIVATE TOKEN",reasoning_content:"PRIVATE REASONING",prompt:"PRIVATE PROMPT"};
+  const response=await worker.fetch(req("/api/overview",GOOD),envWithRows([diagnosticRow(diagnostics)]));
+  const body=await response.json();
+  assert.deepEqual(body.research.latest.report.ai_diagnostics,{
+    outcome:"ai_output_truncated",finish_reason:"length",final_text_present:false,
+    reasoning_present:true,http_status:429
+  });
+  assert.doesNotMatch(JSON.stringify(body),/PRIVATE/);
+  const denied=await worker.fetch(req("/api/overview"),envWithRows([diagnosticRow(diagnostics)]));
+  assert.equal(denied.status,401);
+  assert.doesNotMatch(await denied.text(),/ai_output_truncated|reasoning_present|PRIVATE/);
+});
+
+test("legacy and malformed diagnostics remain unknown without changing historical rows",async()=>{
+  const original=JSON.stringify(row);
+  assert.equal((await chairmanOverview(envWithRows([row]))).research.latest.report.ai_diagnostics,null);
+  assert.equal(JSON.stringify(row),original);
+  for(const value of [[],"PRIVATE",{outcome:"PRIVATE"},null]) {
+    const data=await chairmanOverview(envWithRows([diagnosticRow(value)]));
+    assert.equal(data.research.latest.report.ai_diagnostics,null);
+  }
+  const data=await chairmanOverview(envWithRows([diagnosticRow({outcome:"not_attempted",
+    finish_reason:"PRIVATE",final_text_present:"false",reasoning_present:1,http_status:"403"})]));
+  assert.deepEqual(data.research.latest.report.ai_diagnostics,{
+    outcome:"not_attempted",finish_reason:null,final_text_present:null,reasoning_present:null,http_status:null
+  });
+});
+
+// Execute the actual shipped client script against the authenticated API projection.
+// This checks rendering rather than matching UI source strings.
+async function dashboardFor(rows) {
+  class Element {
+    constructor(){this.textContent="";this.value="";this.dataset={};this.children=[];this.events={};
+      this.classList={add(){},remove(){},toggle(){}};}
+    addEventListener(name,fn){this.events[name]=fn;}
+    appendChild(child){this.children.push(child);return child;}
+    replaceChildren(){this.children=[];}
+    insertBefore(child){this.children.unshift(child);}
+    set innerHTML(_){throw Error("unsafe_html_rendering");}
+  }
+  const elements=new Map([...DASHBOARD_HTML.matchAll(/\bid="([^"]+)"/g)].map(m=>[m[1],new Element()]));
+  const document={getElementById:id=>{assert.ok(elements.has(id),"Missing DOM element "+id);return elements.get(id)},
+    createElement:()=>new Element(),querySelectorAll:()=>[]};
+  const script=DASHBOARD_HTML.match(/<script nonce="__NONCE__">([\s\S]*?)<\/script>/)[1];
+  const env=envWithRows(rows);
+  new Script(script).runInNewContext({document,window:{setTimeout(){}},fetch:async(path,options)=>{
+    assert.equal(options.headers.Authorization,"Bearer "+GOOD);
+    return worker.fetch(new Request("https://kitwise.test"+path,options),env);
+  }});
+  elements.get("access-key").value=GOOD;
+  await elements.get("login-form").events.submit({preventDefault(){}});
+  assert.equal(elements.get("login-error").textContent,"");
+  assert.equal(elements.get("access-key").value,"");
+  return elements;
+}
+
+test("dashboard displays actual AI failure diagnostics after authenticated loading",async()=>{
+  const elements=await dashboardFor([diagnosticRow({outcome:"ai_output_truncated",
+    finish_reason:"length",final_text_present:false,reasoning_present:true,http_status:null})]);
+  assert.match(elements.get("ai-status").textContent,/output limit/);
+  assert.match(elements.get("ai-details").textContent,/final text present: no; reasoning present: yes/);
+  assert.match(elements.get("ai-details").textContent,/Finish reason: length/);
+});
+
+test("dashboard distinguishes successful, skipped, and historical unknown analysis",async()=>{
+  for(const [diagnostics,pattern] of [
+    [{outcome:"ok",finish_reason:"stop",final_text_present:true},/Buyer demand remains unverified/],
+    [{outcome:"not_attempted"},/source evidence was insufficient/],
+    [undefined,/No AI diagnostics recorded/]
+  ]){
+    const elements=await dashboardFor([diagnosticRow(diagnostics)]);
+    assert.match(elements.get("ai-status").textContent,pattern);
+  }
+});
+
+test("manual trigger guidance describes a queued bounded request, not a guaranteed run",async()=>{
+  const promises=[];
+  const response=await worker.fetch(req("/api/research/run",GOOD,"POST"),envWithRows([row]),{
+    waitUntil(p){promises.push(p)}
+  });
+  assert.equal(response.status,202);
+  const data=await response.json();
+  assert.match(data.note,/subject to the shared UTC-day claim/);
+  assert.match(data.note,/one retry after failure/);
+  await Promise.all(promises);
+});

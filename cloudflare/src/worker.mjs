@@ -178,7 +178,7 @@ export default {
         if (origin && origin !== url.origin) return privateJson({ error: "invalid_origin" }, 403);
         if (!ctx || typeof ctx.waitUntil !== "function") return privateJson({ error: "job_runtime_unavailable" }, 503);
         ctx.waitUntil(runResearchCycle(env));
-        return privateJson({ status: "accepted", note: "One UTC-day research attempt maximum; check the dashboard for results." }, 202);
+        return privateJson({ status: "accepted", note: "Request queued subject to the shared UTC-day claim: one initial attempt and one retry after failure. Check the dashboard for results." }, 202);
       }
       return privateJson({ error: "not_found" }, 404);
     }

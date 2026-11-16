@@ -101,7 +101,7 @@ td{color:#c9d6e8}td small{color:#889bb5;display:block}
       <div class="notice"><strong>Research limitations.</strong> Publicly indexed editorial pages can inspire production experiments, but cannot prove marketplace demand, contributor downloads, competitor supply, or profitability. Direct Shutterstock data remains inaccessible.</div>
       <div class="two-col">
         <article class="card"><div class="panel-top"><h4>Latest research cycle</h4><span id="latest-state" class="badge">Awaiting data</span></div><div id="latest-day" class="big-status">No run recorded</div><p id="latest-explain">The first scheduled run may not have occurred yet.</p><div class="panel-top panel-gap"><span class="dim" id="last-updated">Not yet available</span></div><button id="trigger" class="primary-btn" type="button">Run research now</button><div id="source-status" class="dim source-status"></div><div id="trigger-message" class="error" role="status"></div></article>
-        <article class="card"><div class="panel-top"><h4>AI Microstock Production Brief</h4><span class="badge">Unverified hypothesis</span></div><div id="ai-summary" class="prose">No AI research interpretation is recorded yet.</div></article>
+        <article class="card"><div class="panel-top"><h4>AI Microstock Research Brief</h4><span class="badge">Unverified hypothesis</span></div><p id="ai-status" role="status">No AI diagnostics recorded for this run.</p><details><summary>Analysis diagnostics</summary><p id="ai-details" class="dim">No diagnostic metadata available.</p></details><div id="ai-summary" class="prose">No AI research interpretation is recorded yet.</div></article>
       </div>
     </div>
     <section aria-label="Commercial opportunity shortlist">
@@ -147,6 +147,19 @@ var $ = function(id){return document.getElementById(id)};
 function setText(id, value){$(id).textContent = String(value == null ? "—" : value)}
 function badge(id, state){$(id).textContent = state.replace(/_/g," ");$(id).dataset.state = state}
 function cell(row, value){var c=document.createElement("td");c.textContent=String(value==null?"—":value);row.appendChild(c);return c}
+function analysisStatus(d){
+  var messages={
+    ok:"AI analysis returned a final answer. Buyer demand remains unverified.",
+    not_attempted:"AI analysis was skipped because source evidence was insufficient or unavailable.",
+    ai_output_truncated:"AI analysis reached its output limit. No incomplete answer was accepted.",
+    ai_empty_response:"AI analysis returned no usable final answer.",
+    ai_auth_error:"The AI provider denied access. Check the existing AI binding and account permissions.",
+    ai_quota_or_rate_limit:"The AI provider reported a quota or rate limit. Check usage before retrying.",
+    ai_provider_unavailable:"The AI provider reported a service failure.",
+    ai_unavailable:"AI analysis failed; the provider did not supply a recognized failure status."
+  };
+  return d&&messages[d.outcome]||"No AI diagnostics recorded for this run.";
+}
 function render(){
   if(!data)return;
   var r=data.research||{}, latest=r.latest, runs=Array.isArray(r.runs)?r.runs:[], sources=Array.isArray(r.sources)?r.sources:[];
@@ -156,11 +169,17 @@ function render(){
   setText("latest-explain",latest?(latest.status==="completed"?"Indexed research complete. This is editorial evidence, not proven microstock sales.":latest.status==="running"?"Research is processing. Refresh to check results.":"This cycle needs attention: "+(latest.error_code||"unknown reason")):"No microstock research run yet. You can initiate one with the button below.");
   setText("last-updated",latest&&latest.completed_at?"Completed: "+new Date(latest.completed_at).toLocaleString():"No completed run");
   setText("ai-summary",latest&&latest.report&&latest.report.ai_interpretation_unverified?latest.report.ai_interpretation_unverified:"No successful AI interpretation recorded yet.");
+  var aiDiag=latest&&latest.report&&latest.report.ai_diagnostics;
+  setText("ai-status",analysisStatus(aiDiag));
+  setText("ai-details",aiDiag?"Finish reason: "+(aiDiag.finish_reason||"not recorded")+
+    "; final text present: "+(aiDiag.final_text_present==null?"unknown":aiDiag.final_text_present?"yes":"no")+
+    "; reasoning present: "+(aiDiag.reasoning_present==null?"unknown":aiDiag.reasoning_present?"yes":"no")+
+    "; HTTP status: "+(aiDiag.http_status||"not recorded"):"No diagnostic metadata available.");
   var diag=latest&&latest.report&&latest.report.source_diagnostics;
   setText("source-status",diag?"Indexed research: "+diag.indexed_search+"; direct Shutterstock still unavailable":"Source checks not yet available.");
 
   $("trigger").disabled=!r.manual_run_available;
-  $("trigger").textContent=r.manual_run_available?"Run research / retry failed cycle":"Daily attempt limit reached";
+  $("trigger").textContent=r.manual_run_available?"Run research / retry failed cycle":"Run unavailable: already running or daily limit reached";
   var report=latest&&latest.report?latest.report:null;
   setText("quality-accepted",report?report.indexed_source_count:"—");
   setText("quality-rejected",report?report.search_rejected_count:"—");
