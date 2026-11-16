@@ -103,6 +103,8 @@ td{color:#c9d6e8}td small{color:#889bb5;display:block}
         <article class="card"><div class="panel-top"><h4>Latest research cycle</h4><span id="latest-state" class="badge">Awaiting data</span></div><div id="latest-day" class="big-status">No run recorded</div><p id="latest-explain">The first scheduled run may not have occurred yet.</p><div class="panel-top panel-gap"><span class="dim" id="last-updated">Not yet available</span></div><button id="trigger" class="primary-btn" type="button">Run research now</button><div id="source-status" class="dim source-status"></div><div id="trigger-message" class="error" role="status"></div></article>
         <article class="card"><div class="panel-top"><h4>AI Microstock Research Brief</h4><span class="badge">Unverified hypothesis</span></div><p id="ai-status" role="status">No AI diagnostics recorded for this run.</p><details><summary>Analysis diagnostics</summary><p id="ai-details" class="dim">No diagnostic metadata available.</p></details><div id="ai-summary" class="prose">No AI research interpretation is recorded yet.</div></article>
       </div>
+      <h3 class="section-title">Daily asset production pilot</h3>
+      <div class="card"><p id="production-status" role="status">Checking production readiness…</p><p id="production-budget" class="dim"></p><p id="production-stages" class="dim">Generation → visual screening and metadata → resolution and rights review → transfer handoff. Marketplace submission remains separate.</p><button id="production-trigger" class="primary-btn" type="button" disabled>Run one production test</button><div id="production-message" role="status" class="error"></div><div id="production-jobs"></div></div>
     </div>
     <section aria-label="Commercial opportunity shortlist">
       <h3 class="section-title">Research Relevance & Data Quality <span class="dim">Measured source coverage, not a sales forecast</span></h3>
@@ -143,6 +145,8 @@ td{color:#c9d6e8}td small{color:#889bb5;display:block}
 var key = "";
 var data = null;
 var loading = false;
+var production = null;
+var assetUrls = [];
 var $ = function(id){return document.getElementById(id)};
 function setText(id, value){$(id).textContent = String(value == null ? "—" : value)}
 function badge(id, state){$(id).textContent = state.replace(/_/g," ");$(id).dataset.state = state}
@@ -179,7 +183,12 @@ function render(){
   setText("source-status",diag?"Indexed research: "+diag.indexed_search+"; direct Shutterstock still unavailable":"Source checks not yet available.");
 
   $("trigger").disabled=!r.manual_run_available;
-  $("trigger").textContent=r.manual_run_available?"Run research / retry failed cycle":"Run unavailable: already running or daily limit reached";
+  $("trigger").textContent=r.manual_run_available?"Run research / retry failed cycle":
+    r.manual_run_reason==="research_completed_today"?"Today's research completed successfully":
+    r.manual_run_reason==="research_already_running"?"Research is already running":"Research retry limit reached";
+  if(!r.manual_run_available&&r.manual_run_reason!=="research_already_running")
+    setText("trigger-message","Next research day starts "+new Date(r.next_reset_utc).toLocaleString()+". This is the research schedule limit, not your Cloudflare AI credit balance. Production has separate limits.");
+  else setText("trigger-message","");
   var report=latest&&latest.report?latest.report:null;
   setText("quality-accepted",report?report.indexed_source_count:"—");
   setText("quality-rejected",report?report.search_rejected_count:"—");
@@ -225,13 +234,67 @@ function render(){
     var state=document.createElement("span");state.className="badge";state.textContent=String(item.status).replace(/_/g," ");state.dataset.state=item.status;
     row.appendChild(title);row.appendChild(state);dept.appendChild(row)});
 }
+function renderProduction(){
+  var p=production||{},reasons={
+    production_not_enabled:"Scheduled generation has not been enabled.",
+    workers_free_plan_not_confirmed:"Workers Free plan confirmation is needed before unattended AI use.",
+    cloud_bindings_missing:"Required cloud services are not connected.",
+    durable_asset_storage_not_configured:"Durable private image storage is not connected.",
+    storage_free_capacity_not_confirmed:"Free storage capacity has not been confirmed.",
+    vision_model_not_verified:"The visual-review model has not been verified on this account.",
+    review_backlog_full:"Three previews await resolution or quality review; generation is paused.",
+    production_job_already_running_or_uncertain:"A production job is running or needs recovery; no duplicate will start.",
+    production_daily_budget_reserved:"Today's local production reservation is used; it renews next UTC day.",
+    production_provider_paused:"The AI provider reported a limit; production is paused until the recorded retry time.",
+    production_schema_or_read_unavailable:"The production ledger is not available yet."
+  };
+  setText("production-status",p.can_generate?"Ready for a bounded image-generation test. No file is automatically submitted to a marketplace.":
+    (p.blockers||[]).map(function(code){return reasons[code]||"Production setup needs attention."}).join(" ")||"Production status unavailable.");
+  setText("production-budget","Local production reservations: "+(p.budget?p.budget.reserved_neurons:"unknown")+
+    " / "+(p.daily_reserved_neuron_limit||8000)+" neurons. This is not measured account-wide usage. Workers AI's shared free allowance is 10,000/day. Reset: "+
+    (p.next_reset?new Date(p.next_reset).toLocaleString():"unknown")+".");
+  $("production-trigger").disabled=!p.can_generate;
+  setText("production-stages","Image generation and image-based metadata: pilot code. Cloudflare Images ESRGAN upscaling: optional adapter, not yet verified on this account. Marketplace transfer: existing uploader not yet connected to generated files. Final submission: contributor portal required. AI-generated files are blocked from Shutterstock.");
+  var list=$("production-jobs");list.replaceChildren();
+  assetUrls.forEach(function(url){URL.revokeObjectURL(url)});assetUrls=[];
+  (p.jobs||[]).forEach(function(job){
+    var line=document.createElement("div");line.className="list-line";
+    var label=document.createElement("span");label.textContent=(job.metadata&&job.metadata.title||job.id)+" — "+String(job.status).replace(/_/g," ")+"; "+(job.width||"?")+" × "+(job.height||"?");
+    line.appendChild(label);
+    if(job.metadata){
+      var metadata=document.createElement("p");metadata.textContent=job.metadata.description+" Keywords: "+(job.metadata.keywords||[]).join(", ");line.appendChild(metadata);
+    }
+    if(job.bytes){
+      var view=document.createElement("button");view.type="button";view.className="secondary-btn";view.textContent="Download private preview";
+      view.addEventListener("click",async function(){
+        if(!key)return;view.disabled=true;
+        try{
+          var response=await fetch("/api/production/assets/"+encodeURIComponent(job.id)+"/image",{headers:{"Authorization":"Bearer "+key},cache:"no-store"});
+          if(!response.ok)throw Error("unavailable");
+          var blob=await response.blob();if(blob.type!=="image/jpeg")throw Error("invalid_image");
+          var url=URL.createObjectURL(blob);assetUrls.push(url);
+          var link=document.createElement("a");link.href=url;link.download=job.id+".jpg";link.textContent="Save image preview";line.appendChild(link);link.click();
+        }catch(_){view.textContent="Image unavailable; refresh and retry. KV propagation can take a minute."}
+        finally{view.disabled=false}
+      });line.appendChild(view);
+    }
+    list.appendChild(line);
+  });
+}
+async function loadProduction(){
+  try{
+    var response=await fetch("/api/production",{headers:{"Authorization":"Bearer "+key},cache:"no-store"});
+    if(!response.ok)throw Error("unavailable");
+    production=await response.json();renderProduction();
+  }catch(_){production=null;setText("production-status","Could not load production status. Research results remain available.");$("production-trigger").disabled=true}
+}
 async function loadOverview(){
   var response=await fetch("/api/overview",{headers:{"Authorization":"Bearer "+key},cache:"no-store"});
   var body=await response.json();
   if(!response.ok){var err=new Error(body.error||"request_failed");err.status=response.status;throw err}
-  data=body;render();
+  data=body;render();await loadProduction();
 }
-function lock(message){key="";data=null;$("app").classList.add("hidden");$("login").classList.remove("hidden");$("lock").classList.add("hidden");$("access-key").value="";setText("login-error",message||"");}
+function lock(message){key="";data=null;production=null;assetUrls.forEach(function(url){URL.revokeObjectURL(url)});assetUrls=[];$("production-jobs").replaceChildren();$("app").classList.add("hidden");$("login").classList.remove("hidden");$("lock").classList.add("hidden");$("access-key").value="";setText("login-error",message||"");}
 $("login-form").addEventListener("submit",async function(event){
   event.preventDefault();if(loading)return;loading=true;key=$("access-key").value.trim();setText("login-error","Connecting...");
   try{await loadOverview();$("login").classList.add("hidden");$("app").classList.remove("hidden");$("lock").classList.remove("hidden");$("access-key").value="";setText("login-error","")}
@@ -253,6 +316,18 @@ $("trigger").addEventListener("click",async function(){
     setText("trigger-message","Request accepted. The cycle will complete in the cloud; press Refresh below to see its result.");
     window.setTimeout(async function(){try{await loadOverview()}catch(_){}},10000);
   }catch(error){setText("trigger-message","Could not start research: "+error.message);$("trigger").disabled=false}
+  finally{loading=false}
+});
+$("production-trigger").addEventListener("click",async function(){
+  if(!key||loading||!production||!production.can_generate)return;
+  loading=true;$("production-trigger").disabled=true;
+  setText("production-message","Generating one test and inspecting its actual pixels. Keep this tab open until the result returns.");
+  try{
+    var response=await fetch("/api/production/run",{method:"POST",headers:{"Authorization":"Bearer "+key},cache:"no-store"});
+    if(!response.ok)throw Error("production_blocked");
+    var result=await response.json();
+    setText("production-message","Production test: "+String(result.status||"unknown").replace(/_/g," ")+". Refresh for its persisted metadata and preview. This is not a marketplace submission.");
+  }catch(_){setText("production-message","Production could not start. Refresh to see the current prerequisites and limits.")}
   finally{loading=false}
 });
 var refresh=document.createElement("button");refresh.type="button";refresh.className="secondary-btn";refresh.textContent="Refresh company data";refresh.addEventListener("click",async function(){

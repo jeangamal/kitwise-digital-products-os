@@ -12,6 +12,10 @@ Business operating context: [reconciled master/handover summary](docs/company-os
 
 ---
 
+## Cloudflare image-production pilot
+
+The bounded generation/metadata pilot and its free-tier controls are documented in [Cloudflare production pilot](docs/company-os/CLOUDFLARE_PRODUCTION_PILOT.md). A generated preview is not an upload-ready asset; upscaling, quality, rights and transfer integration must be verified independently.
+
 ## Existing stock-upload worker
 
 Check a private cloud inbox, validate images and metadata, and transfer new assets

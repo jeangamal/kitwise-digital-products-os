@@ -1,0 +1,25 @@
+name: Kitwise Cloudflare production pilot check (manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kitwise-production-pilot-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Verify authentication and run one bounded preview test
+        env:
+          KITWISE_CHAIRMAN_KEY: ${{ secrets.KITWISE_CHAIRMAN_KEY }}
+        run: python3 cloudflare/scripts/live-pilot-check.py

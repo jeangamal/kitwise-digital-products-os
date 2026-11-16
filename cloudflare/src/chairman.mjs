@@ -136,6 +136,9 @@ export async function chairmanOverview(env) {
   }));
   const latest = runs[0] || null;
   const day = new Date().toISOString().slice(0, 10);
+  const today = runs.find(r => r.day === day);
+  const nextReset = new Date(day+"T00:00:00Z");
+  nextReset.setUTCDate(nextReset.getUTCDate()+1);
   let sources = [];
   if (latest) {
     const r = await env.DB.prepare(
@@ -167,7 +170,13 @@ export async function chairmanOverview(env) {
     research: {
       latest, runs, sources, run_count: runs.length,
       manual_run_available: !runs.some(r => r.day === day &&
-        !(r.status === 'needs_attention' && r.retry_count === 0))
+        !(r.status === 'needs_attention' && r.retry_count === 0)),
+      daily_state:today?.status||"not_started",
+      next_reset_utc:nextReset.toISOString(),
+      manual_run_reason:today?.status==="completed"?"research_completed_today":
+        today?.status==="running"?"research_already_running":
+        today?.retry_count>0?"research_retry_exhausted":"research_available",
+      quota_note:"This daily research claim is separate from Cloudflare's account-wide Workers AI allowance."
     },
     business: {
       verified_revenue: null,

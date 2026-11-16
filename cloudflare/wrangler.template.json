@@ -5,11 +5,28 @@
   "workers_dev": true,
   "triggers": {
     "crons": [
-      "17 7 * * *"
+      "17 7 * * *",
+      "*/15 * * * *"
     ]
   },
   "ai": {
     "binding": "AI"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "ASSET_KV",
+      "id": "ba4970bd220b4e2b9fd00ce934de4ef8"
+    }
+  ],
+  "images": {
+    "binding": "IMAGES"
+  },
+  "vars": {
+    "WORKERS_PLAN": "free",
+    "PRODUCTION_ENABLED": "true",
+    "ASSET_STORAGE_FREE_CONFIRMED": "true",
+    "VISION_MODEL_VERIFIED": "true",
+    "IMAGES_FREE_CONFIRMED": "true"
   },
   "d1_databases": [
     {
