@@ -36,3 +36,4 @@ ALTER TABLE production_jobs ADD COLUMN upscaled_object_key TEXT;
 ALTER TABLE production_jobs ADD COLUMN final_width INTEGER;
 ALTER TABLE production_jobs ADD COLUMN final_height INTEGER;
 ALTER TABLE production_jobs ADD COLUMN final_bytes INTEGER;
+ALTER TABLE production_jobs ADD COLUMN error_stage TEXT;

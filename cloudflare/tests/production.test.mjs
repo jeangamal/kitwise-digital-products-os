@@ -40,7 +40,7 @@ class Store {
     }else if(sql.startsWith('UPDATE production_jobs SET object_key')){
       Object.assign(this.jobs.get(a.at(-1)),{object_key:a[0],width:a[2],height:a[3],bytes:a[4]});changes=1;
     }else if(sql.startsWith("UPDATE production_jobs SET status='failed'")){
-      Object.assign(this.jobs.get(a[2]),{status:'failed',error_code:a[1]});changes=1;
+      Object.assign(this.jobs.get(a.at(-1)),{status:'failed',error_code:a[1]});changes=1;
     }else if(sql.startsWith('UPDATE production_jobs SET status=?')){
       Object.assign(this.jobs.get(a[4]),{status:a[0],metadata:JSON.parse(a[2]),qa:JSON.parse(a[3])});this.pending++;changes=1;
     }else if(sql.startsWith('INSERT OR IGNORE INTO production_months')){this.months.set(a[0],this.months.get(a[0])||0);changes=1}

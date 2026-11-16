@@ -156,7 +156,7 @@ export async function productionOverview(env,now=new Date()) {
     if(active?.count>0)limits.push("production_job_already_running_or_uncertain");
     if(budget?.reserved_neurons+JOB_RESERVATION>DAILY_RESERVATION)limits.push("production_daily_budget_reserved");
     if(budget?.paused_until>now.toISOString())limits.push("production_provider_paused");
-    const jobs=await env.DB.prepare("SELECT id,day,research_day,status,started_at,completed_at,width,height,bytes,final_width,final_height,final_bytes,metadata_json,qa_json,error_code FROM production_jobs ORDER BY started_at DESC LIMIT 10").all();
+    const jobs=await env.DB.prepare("SELECT id,day,research_day,status,started_at,completed_at,width,height,bytes,final_width,final_height,final_bytes,metadata_json,qa_json,error_code,error_stage FROM production_jobs ORDER BY started_at DESC LIMIT 10").all();
     return {...readiness,can_generate:readiness.can_generate&&limits.length===0,
       blockers:[...readiness.blockers,...limits],
       next_reset:nextReset(now),budget:budget||{day,reserved_neurons:0,attempted_jobs:0},
@@ -190,7 +190,7 @@ export async function runProductionTick(env,options={}) {
     ]);
     if(claimed[1]?.meta?.changes!==1)return {status:"paused_or_already_running",next_reset:nextReset(start)};
   }catch(_){return {status:"claim_unavailable"}}
-  let objectKey=null,originalStored=false;
+  let objectKey=null,originalStored=false,stage="brief";
   try{
     const ledger=await env.DB.prepare("SELECT COUNT(*) count,COALESCE(SUM(bytes+COALESCE(final_bytes,0)),0) total FROM production_jobs WHERE object_key IS NOT NULL").first();
     // Bound storage growth independently of API credits. Never delete existing assets to make room.
@@ -200,9 +200,11 @@ export async function runProductionTick(env,options={}) {
       {role:"user",content:JSON.stringify({research_hypothesis:report.ai_interpretation_unverified.slice(0,4000),sources,variation_id:id}).slice(0,12000)}
     ],max_completion_tokens:600,chat_template_kwargs:{enable_thinking:false}});
     const brief=validateBrief(parseModelJson(reply),sources.map(s=>s.id));
+    stage="generation";
     const generated=await env.AI.run(IMAGE_MODEL,{prompt:brief.prompt,steps:4});
     const {bytes,width,height}=decodeGeneratedImage(generated);
     const sha=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",bytes)),n=>n.toString(16).padStart(2,"0")).join("");
+    stage="storage";
     objectKey="production/"+day+"/"+id+".jpg";
     await env.DB.prepare("UPDATE production_jobs SET object_key=?,image_sha256=?,width=?,height=?,bytes=? WHERE id=? AND status='running'")
       .bind(objectKey,sha,width,height,bytes.length,id).run();
@@ -216,6 +218,7 @@ export async function runProductionTick(env,options={}) {
       await env.DB.prepare("INSERT OR IGNORE INTO production_months (month) VALUES (?)").bind(month).run();
       const reserved=await env.DB.prepare("UPDATE production_months SET reserved_transformations=reserved_transformations+1 WHERE month=? AND reserved_transformations<100").bind(month).run();
       if(reserved?.meta?.changes===1) {
+        stage="upscale";
         finalImage=await upscaleImage(env,bytes,width,height);
         const finalKey="production/"+day+"/"+id+"-2x.jpg";
         await env.DB.prepare("UPDATE production_jobs SET upscaled_object_key=?,final_width=?,final_height=?,final_bytes=? WHERE id=? AND status='running'")
@@ -225,6 +228,7 @@ export async function runProductionTick(env,options={}) {
         upscaled=true;
       }
     }
+    stage="caption";
     const caption=await env.AI.run(VISION_MODEL,{messages:[{role:"user",content:[
       {type:"text",text:CAPTION_PROMPT+" Requested concept (not evidence of what is visible): "+brief.prompt},
       {type:"image_url",image_url:{url:"data:image/jpeg;base64,"+(upscaled?base64Bytes(finalImage.bytes):generated.image)}}
@@ -233,6 +237,7 @@ export async function runProductionTick(env,options={}) {
     const qa={visual_pass:metadata.visual_pass,issues:metadata.issues,review_status:"automated_screen_only",
       resolution_ok:finalImage.width*finalImage.height>=4_000_000,technical_check:"jpeg_header_dimensions_only",ai_disclosure_required:true,rights_review_required:true,
       transparent_background:false,upscaled,upscale_method:upscaled?"images_esrgan_requested_not_independently_verified":null,submission_status:"not_submitted",transfer_status:"not_transferred"};
+    stage="persist";
     const status=qa.resolution_ok?"needs_review":"needs_resolution";
     await env.DB.prepare("UPDATE production_jobs SET status=?,completed_at=?,metadata_json=?,qa_json=? WHERE id=? AND status='running'")
       .bind(status,now().toISOString(),JSON.stringify({...metadata,filename:id+".jpg"}),JSON.stringify(qa),id).run();
@@ -242,8 +247,8 @@ export async function runProductionTick(env,options={}) {
     const pause=failure.pause==="day"?nextReset(start):failure.pause==="hour"?new Date(start.getTime()+3600000).toISOString():null;
     if(pause)await env.DB.prepare("UPDATE production_days SET paused_until=?,pause_reason=? WHERE day=?").bind(pause,failure.code,day).run();
     // Failed attempts keep the full reservation. Uncertain state is never blindly regenerated.
-    await env.DB.prepare("UPDATE production_jobs SET status='failed',completed_at=?,error_code=? WHERE id=? AND status='running'")
-      .bind(now().toISOString(),failure.code,id).run();
-    return {id,status:"failed",error_code:failure.code,paused_until:pause,source_retained:originalStored};
+    await env.DB.prepare("UPDATE production_jobs SET status='failed',completed_at=?,error_code=?,error_stage=? WHERE id=? AND status='running'")
+      .bind(now().toISOString(),failure.code,stage,id).run();
+    return {id,status:"failed",error_code:failure.code,error_stage:stage,paused_until:pause,source_retained:originalStored};
   }
 }
