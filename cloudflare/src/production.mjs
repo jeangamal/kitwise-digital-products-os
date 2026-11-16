@@ -151,7 +151,9 @@ export async function productionOverview(env,now=new Date()) {
     const day=now.toISOString().slice(0,10);
     const budget=await env.DB.prepare("SELECT day,reserved_neurons,attempted_jobs,paused_until,pause_reason FROM production_days WHERE day=?").bind(day).first();
     const active=await env.DB.prepare("SELECT COUNT(*) count FROM production_jobs WHERE status IN ('running','uncertain')").first();
+    const successfulResearch=await env.DB.prepare("SELECT day FROM curated_research_runs WHERE day=? AND status='completed' AND document_count>=2").bind(day).first();
     const limits=[];
+    if(!successfulResearch)limits.push("awaiting_daily_research");
     if(pending?.count>=3)limits.push("review_backlog_full");
     if(active?.count>0)limits.push("production_job_already_running_or_uncertain");
     if(budget?.reserved_neurons+JOB_RESERVATION>DAILY_RESERVATION)limits.push("production_daily_budget_reserved");
