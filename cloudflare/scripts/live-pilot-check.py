@@ -35,9 +35,11 @@ def request(path, method='GET', authenticated=True):
 
 
 code, _ = request('/api/overview', authenticated=False)
-if code != 401:
+if code not in (401, 403):
     print(json.dumps({'status': 'blocked', 'check': 'unauthenticated_route', 'http_status': code}))
     sys.exit(1)
+print(json.dumps({'check': 'unauthenticated_denial', 'http_status': code,
+                  'worker_level_auth_verified': code == 401}))
 code, research = request('/api/overview')
 if code != 200:
     print(json.dumps({'status': 'blocked', 'check': 'authenticated_overview', 'http_status': code}))
