@@ -1,5 +1,22 @@
 # Kitwise project status — 2026-11-16
 
+## Current snapshot
+
+- **Deployed code:** 64467b8a61e91e571289ddb408fe8c9b4ef4d519 (merged PR #13), Worker version 7c980cd7-4c3f-4aa2-89b4-7ab268f9722c, 100% traffic, deployed November 16 at 02:18:03 UTC. Existing D1/auth/Tavily bindings, private KV and Images preserved. The earlier release records below are historical steps.
+- **Working live:** daily research; two scheduled native generation → private original → 2048×2048 enlargement → actual-image metadata/QA runs; authenticated download/sidecar code is deployed. Private artifacts were retrieved and visually inspected through the account API. The second native run (02:15:13–02:15:29 UTC) produced an unbranded origami-crane candidate with 20 keywords and all explicit visual flags clear; it remains needs_review, not approved or published.
+- **Quality limits:** the first native image's model pass was wrong; unrequested writing and uncertain food identity were caught by inspection and a stricter live recheck. Effective QA is false; prior evidence is retained. Professional stock acceptance and commercially useful differentiation are not established by any model pass. The second brief also named a contributor as buyer; a real paying-customer use case still needs validation.
+- **Current pause:** three unresolved previews (one direct API sample, two native outputs) reach the pilot backlog limit. Cron continues checking, but generation stays paused until those items are resolved. Midnight quota reset does not remove quality/storage/configuration holds. This is not an unrestricted system consuming all free credits each day.
+- **Counters:** 15 research rows / one completed; production has four records (one direct sample, two completed technical candidates held for review, one failed brief with no image). 2,048 local reserved neurons are conservative reservations, not measured Cloudflare usage; two monthly transformation reservations. No paid plan or subscription enabled.
+- **Checks:** 65 tests pass, including actual SQLite concurrency/rollback cases; all CI checks green on reviewed PR #13. The 02:00 brief failure could not be reproduced exactly; preserve its unknown cause. Provider JSON mode was tested live and future response/error metadata is sanitized and explicit.
+- **Access/transfer blockers:** HTTP tests from this workspace and GitHub Actions are denied at the Cloudflare edge with 403, including a legitimate authenticated overview request (run 43791322744). No access control was bypassed. Existing-uploader check 43785061464 found four missing configuration secrets and skipped connections. The new Cloudflare spool is not yet connected to the old Drive-based uploader; private draft sidecars are a handoff, not an upload bridge. No transfer, portal submission, publication or sale occurred.
+
+### Next prioritized work
+
+1. Resolve candidate quality, true customer/use-case and category/rights checks; provide a scoped review-to-transfer eligibility transition while retaining originals and review history.
+2. Connect the Cloudflare asset spool to the existing receipt-preserving secure-transfer executor through a supported authenticated read path. Address the machine HTTP-access blocker or an approved scoped account-API read integration; do not spoof clients or expose assets publicly.
+3. Configure contributor connections and receipt-key recovery securely. Follow docs/SETUP.md; never paste secret values in chat. Until configuration and the bridge are verified, automatic uploading remains incomplete. Preserve exact AI disclosure and keep Shutterstock AI uploads blocked.
+4. Test one eligible small transfer with actual credentials, inspect its receipt and keep portal submission/review/sales as separate states. Only then consider raising the preview backlog/budget limits. A fully Cloudflare-only final-submission workflow is not established; Adobe does not provide a Contributor API.
+
 ## Working and verified
 
 - Repository main inspected at c5a8f83b81bc338683ff6ec1da5faf3f03179d2a. GitHub repository write access and connected Cloudflare account access verified independently.
