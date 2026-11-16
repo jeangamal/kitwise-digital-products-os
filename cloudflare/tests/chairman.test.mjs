@@ -220,3 +220,15 @@ test("manual trigger guidance describes a queued bounded request, not a guarante
   assert.match(data.note,/one retry after failure/);
   await Promise.all(promises);
 });
+
+test("completed daily research is explained separately from account-wide AI quotas",async()=>{
+  const today=new Date().toISOString().slice(0,10);
+  const current={...row,day:today,status:"completed"};
+  const data=await chairmanOverview(envWithRows([current]));
+  assert.equal(data.research.manual_run_available,false);
+  assert.equal(data.research.manual_run_reason,"research_completed_today");
+  assert.match(data.research.quota_note,/separate/);
+  const elements=await dashboardFor([current]);
+  assert.equal(elements.get("trigger").textContent,"Today's research completed successfully");
+  assert.match(elements.get("trigger-message").textContent,/not your Cloudflare AI credit balance/);
+});

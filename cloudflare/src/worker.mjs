@@ -1,6 +1,7 @@
 import { authorizeChairman, chairmanOverview, privateJson, securityHeaders } from "./chairman.mjs";
 import { DASHBOARD_HTML } from "./dashboard.mjs";
 import { seasonCalendar } from "./market-intelligence.mjs";
+import { assetStore, productionOverview, productionReadiness, runProductionTick } from "./production.mjs";
 import {
   searchOfficialEditorial, makeIndexedPrompt, INDEXED_RESEARCH_MANDATE
 } from "./indexed-research.mjs";
@@ -173,6 +174,30 @@ export default {
         try { return privateJson(await chairmanOverview(env)); }
         catch (_) { return privateJson({ error: "database_read_unavailable" }, 503); }
       }
+      if (url.pathname === "/api/production" && request.method === "GET") {
+        return privateJson(await productionOverview(env));
+      }
+      if (url.pathname === "/api/production/run" && request.method === "POST") {
+        const origin=request.headers.get("origin");
+        if(origin&&origin!==url.origin)return privateJson({error:"invalid_origin"},403);
+        const ready=productionReadiness(env);
+        if(!ready.can_generate)return privateJson({status:"blocked",blockers:ready.blockers},409);
+        // Await the HTTP test: waitUntil has only a short post-response lifetime.
+        // Daily unattended jobs run in the longer-lived cron invocation instead.
+        try{return privateJson(await runProductionTick(env))}
+        catch(_){return privateJson({error:"production_runtime_unavailable"},503)}
+      }
+      const assetPath=url.pathname.match(/^\/api\/production\/assets\/([a-f\d-]{36})\/image$/i);
+      if(assetPath&&request.method==="GET") {
+        try {
+          const row=await env.DB.prepare("SELECT object_key,upscaled_object_key FROM production_jobs WHERE id=?").bind(assetPath[1]).first();
+          const store=assetStore(env);
+          if(!row?.object_key||!store?.get)return privateJson({error:"asset_unavailable"},404);
+          const image=await store.get(row.upscaled_object_key||row.object_key);
+          if(!image)return privateJson({error:"asset_unavailable"},404);
+          return new Response(image.body,{headers:securityHeaders({"content-type":"image/jpeg","content-disposition":"attachment; filename=\""+assetPath[1]+".jpg\""})});
+        }catch(_){return privateJson({error:"asset_read_unavailable"},503)}
+      }
       if (url.pathname === "/api/research/run" && request.method === "POST") {
         const origin = request.headers.get("origin");
         if (origin && origin !== url.origin) return privateJson({ error: "invalid_origin" }, 403);
@@ -184,7 +209,12 @@ export default {
     }
     return json({ error: "not_found" }, 404);
   },
-  async scheduled(_controller, env, ctx) {
-    ctx.waitUntil(runResearchCycle(env));
+  async scheduled(controller, env, ctx) {
+    // The quarter-hour production pulse never consumes another Tavily research attempt.
+    if(controller?.cron==="*/15 * * * *") {
+      ctx.waitUntil(runProductionTick(env).catch(()=>null));
+    }else {
+      ctx.waitUntil(runResearchCycle(env).then(()=>runProductionTick(env)).catch(()=>null));
+    }
   }
 };

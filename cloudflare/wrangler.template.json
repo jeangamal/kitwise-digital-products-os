@@ -5,7 +5,8 @@
   "workers_dev": true,
   "triggers": {
     "crons": [
-      "17 7 * * *"
+      "17 7 * * *",
+      "*/15 * * * *"
     ]
   },
   "ai": {
