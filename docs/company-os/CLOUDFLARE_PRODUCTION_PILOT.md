@@ -51,3 +51,11 @@ Uploader readiness check: manual `check-connections` run 43785061464 completed, 
 ## Controlled live test
 
 The manual `company-os-production-check.yml` workflow runs only on main. It uses the already configured `KITWISE_CHAIRMAN_KEY` Actions secret, checks unauthenticated denial and the private overview, and invokes one synchronous bounded production test. It prints only fixed statuses, stages and counts; never keys, image bytes, metadata, prompts or provider bodies. No secrets are available to PR tests. If that existing secret is absent or the environment is blocked at Cloudflare's edge, the test reports the blocker instead of changing authentication. The actual business processing remains in the Cloudflare Worker; GitHub only drives the test.
+
+## Deployed pilot revision
+
+PR #10 (`4a0fe6ae4429a04918215813a5bdbe40469b6cbc`) was deployed to the existing Worker on November 16 at 01:24:50 UTC as version `c0ad34cf-0f76-4324-9cc5-3ae72e1cf5ff`; migration 0006 and private KV/Images bindings are installed. Both existing secrets and historical research remain intact. The production cron wakes every quarter hour, independently of daily research.
+
+The manual HTTP acceptance test was blocked at the Cloudflare edge with 403 before invoking production. Do not describe it as end-to-end success. Direct model probes succeeded, while the scheduled native-binding path must be observed in D1 and the owner browser. No marketplace transfer has occurred. Current exact release evidence is in PROJECT_STATUS.md.
+
+The private gallery exposes both image downloads and matching `.jpg.json` metadata sidecars behind the existing Chairman key. Sidecars retain AI provenance, draft category/rights holds, and `_kitwise.transfer_eligible=false`; they are a review handoff, not an automatic upload bridge. A direct API sample is explicitly labeled separately from a scheduled production job. The imported sample's timestamps mean import finalization; its inference timing was not recorded.

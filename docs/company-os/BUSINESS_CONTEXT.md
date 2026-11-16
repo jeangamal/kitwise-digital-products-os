@@ -45,7 +45,7 @@ Inventory existing assets and prior submissions before reuse. Preserve originals
 
 ## Next work and historical proposals
 
-Finish and review PR #8; deployment still needs approval and a successful persisted Worker-binding cycle. Draft PR #7 is an offline decision engine, not live functionality. Before adoption, reconcile complete time accounting, evidence-factor relevance and real owner-authorized commercial input. Its dated snow-globe pilot is a proposal, not production authority or current sales evidence.
+PR #8 was merged/deployed with owner approval and a persisted November 16 research cycle succeeded. The owner subsequently authorized a bounded Cloudflare free-tier production pilot; see PROJECT_STATUS.md for its exact deployed revision, tests and remaining gaps. Draft PR #7 is an offline decision engine, not live functionality. Before adoption, reconcile complete time accounting, evidence-factor relevance and real owner-authorized commercial input. Its dated snow-globe pilot is a proposal, not production authority or current sales evidence.
 
 Production, publishing, finance and autonomous scaling remain unfinished. Do not add departments as cosmetic dashboard cards or claim an operating business from green tests. The next commercial proof is one source-backed decision using actual inventory/provenance, close competitor comparisons, explicitly known/missing paid evidence and measured total work time.
 

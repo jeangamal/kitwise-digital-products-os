@@ -203,3 +203,18 @@ test('SDK text error codes are classified without storing provider messages or a
   assert.equal(classifyProductionError({status:403,code:5016}).code,'model_license_required');
   assert.equal(classifyProductionError(Error('AiError: 5035: PRIVATE')).code,'paid_model_not_allowed');
 });
+
+test('metadata sidecar remains authenticated, private and explicitly ineligible for transfer',async()=>{
+  const key='a'.repeat(64),id='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  const env={CHAIRMAN_DASHBOARD_KEY:key,DB:{prepare:()=>({bind:()=>({first:async()=>({
+    metadata_json:JSON.stringify({...caption,filename:id+'.jpg',ai_generated:true,targets:['adobe'],categories:{}}),
+    qa_json:JSON.stringify({resolution_ok:false}),status:'needs_resolution'
+  })})})}};
+  const req=auth=>new Request('https://kitwise.test/api/production/assets/'+id+'/metadata',{headers:auth?{authorization:'Bearer '+key}:{}});
+  assert.equal((await worker.fetch(req(false),env)).status,401);
+  const response=await worker.fetch(req(true),env);
+  assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store, private');
+  assert.match(response.headers.get('content-disposition'),/\.jpg\.json/);
+  const body=await response.json();assert.equal(body._kitwise.transfer_eligible,false);
+  assert.equal(body.ai_generated,true);assert.deepEqual(body.targets,['adobe']);
+});

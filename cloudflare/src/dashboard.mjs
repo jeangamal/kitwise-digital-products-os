@@ -246,23 +246,38 @@ function renderProduction(){
     production_job_already_running_or_uncertain:"A production job is running or needs recovery; no duplicate will start.",
     production_daily_budget_reserved:"Today's local production reservation is used; it renews next UTC day.",
     production_provider_paused:"The AI provider reported a limit; production is paused until the recorded retry time.",
+    awaiting_daily_research:"Production is waiting for today's successful research before generating a new concept.",
     production_schema_or_read_unavailable:"The production ledger is not available yet."
   };
   setText("production-status",p.can_generate?"Ready for a bounded image-generation test. No file is automatically submitted to a marketplace.":
     (p.blockers||[]).map(function(code){return reasons[code]||"Production setup needs attention."}).join(" ")||"Production status unavailable.");
   setText("production-budget","Local production reservations: "+(p.budget?p.budget.reserved_neurons:"unknown")+
     " / "+(p.daily_reserved_neuron_limit||8000)+" neurons. This is not measured account-wide usage. Workers AI's shared free allowance is 10,000/day. Reset: "+
-    (p.next_reset?new Date(p.next_reset).toLocaleString():"unknown")+".");
+    (p.next_reset?new Date(p.next_reset).toLocaleString():"unknown")+"."+
+    (p.budget&&p.budget.paused_until?" Provider pause until "+new Date(p.budget.paused_until).toLocaleString()+".":""));
   $("production-trigger").disabled=!p.can_generate;
   setText("production-stages","Image generation and image-based metadata: pilot code. Cloudflare Images ESRGAN upscaling: optional adapter, not yet verified on this account. Marketplace transfer: existing uploader not yet connected to generated files. Final submission: contributor portal required. AI-generated files are blocked from Shutterstock.");
   var list=$("production-jobs");list.replaceChildren();
   assetUrls.forEach(function(url){URL.revokeObjectURL(url)});assetUrls=[];
   (p.jobs||[]).forEach(function(job){
     var line=document.createElement("div");line.className="list-line";
-    var label=document.createElement("span");label.textContent=(job.metadata&&job.metadata.title||job.id)+" — "+String(job.status).replace(/_/g," ")+"; "+(job.width||"?")+" × "+(job.height||"?");
+    var label=document.createElement("span");label.textContent=(job.qa&&job.qa.origin==="direct_api_smoke_test_not_scheduled_pipeline"?"Direct API sample: ":"")+(job.metadata&&job.metadata.title||job.id)+" — "+String(job.status).replace(/_/g," ")+"; original "+(job.width||"?")+" × "+(job.height||"?")+(job.final_width?"; final "+job.final_width+" × "+job.final_height:"");
     line.appendChild(label);
+    if(job.error_code){var failure=document.createElement("p");failure.textContent="Failure during "+String(job.error_stage||"unknown stage")+": "+String(job.error_code).replace(/_/g," ");line.appendChild(failure)}
+    if(job.qa){var checks=document.createElement("p");checks.textContent=(job.qa.resolution_ok?"Resolution minimum met; quality and rights still need review.":"Resolution minimum not met.")+" Automated visual screen: "+(job.qa.visual_pass===true?"provisional pass":job.qa.visual_pass===false?"failed":"unknown")+". Not transferred or submitted.";line.appendChild(checks)}
     if(job.metadata){
       var metadata=document.createElement("p");metadata.textContent=job.metadata.description+" Keywords: "+(job.metadata.keywords||[]).join(", ");line.appendChild(metadata);
+      var sidecar=document.createElement("button");sidecar.type="button";sidecar.className="secondary-btn";sidecar.textContent="Download draft metadata";
+      sidecar.addEventListener("click",async function(){
+        if(!key)return;sidecar.disabled=true;
+        try{
+          var response=await fetch("/api/production/assets/"+encodeURIComponent(job.id)+"/metadata",{headers:{"Authorization":"Bearer "+key},cache:"no-store"});
+          if(!response.ok)throw Error("unavailable");
+          var content=await response.json(),url=URL.createObjectURL(new Blob([JSON.stringify(content,null,2)],{type:"application/json"}));assetUrls.push(url);
+          var link=document.createElement("a");link.href=url;link.download=job.id+".jpg.json";link.textContent="Save draft metadata";line.appendChild(link);link.click();
+        }catch(_){sidecar.textContent="Metadata unavailable; refresh and retry."}
+        finally{sidecar.disabled=false}
+      });line.appendChild(sidecar);
     }
     if(job.bytes){
       var view=document.createElement("button");view.type="button";view.className="secondary-btn";view.textContent="Download private preview";

@@ -164,7 +164,7 @@ test("legacy and malformed diagnostics remain unknown without changing historica
 
 // Execute the actual shipped client script against the authenticated API projection.
 // This checks rendering rather than matching UI source strings.
-async function dashboardFor(rows) {
+async function dashboardFor(rows, productionData) {
   class Element {
     constructor(){this.textContent="";this.value="";this.dataset={};this.children=[];this.events={};
       this.classList={add(){},remove(){},toggle(){}};}
@@ -181,6 +181,7 @@ async function dashboardFor(rows) {
   const env=envWithRows(rows);
   new Script(script).runInNewContext({document,window:{setTimeout(){}},fetch:async(path,options)=>{
     assert.equal(options.headers.Authorization,"Bearer "+GOOD);
+    if(path==="/api/production"&&productionData)return new Response(JSON.stringify(productionData));
     return worker.fetch(new Request("https://kitwise.test"+path,options),env);
   }});
   elements.get("access-key").value=GOOD;
@@ -196,6 +197,15 @@ test("dashboard displays actual AI failure diagnostics after authenticated loadi
   assert.match(elements.get("ai-status").textContent,/output limit/);
   assert.match(elements.get("ai-details").textContent,/final text present: no; reasoning present: yes/);
   assert.match(elements.get("ai-details").textContent,/Finish reason: length/);
+});
+
+test("dashboard labels direct API samples separately from scheduled production",async()=>{
+  const elements=await dashboardFor([row],{can_generate:false,blockers:[],jobs:[{
+    id:"sample",status:"needs_resolution",width:1024,height:1024,
+    metadata:{title:"Peach frame",description:"A test frame.",keywords:["frame"]},
+    qa:{origin:"direct_api_smoke_test_not_scheduled_pipeline"}
+  }]});
+  assert.match(elements.get("production-jobs").children[0].children[0].textContent,/^Direct API sample: Peach frame/);
 });
 
 test("dashboard distinguishes successful, skipped, and historical unknown analysis",async()=>{
