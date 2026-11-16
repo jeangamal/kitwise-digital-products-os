@@ -38,7 +38,8 @@ class Store {
     }else if(sql.startsWith('UPDATE production_days SET paused_until')){
       Object.assign(this.days.get(a[2]),{paused_until:a[0],pause_reason:a[1]});changes=1;
     }else if(sql.startsWith('UPDATE production_jobs SET qa_json')){
-      Object.assign(this.jobs.get(a[2]),{brief:JSON.parse(a[0]),sources:JSON.parse(a[1])});changes=1;
+      if(a.length===2)Object.assign(this.jobs.get(a[1]),{brief_diagnostics:JSON.parse(a[0])});
+      else Object.assign(this.jobs.get(a[2]),{brief:JSON.parse(a[0]),sources:JSON.parse(a[1])});changes=1;
     }else if(sql.startsWith('UPDATE production_jobs SET object_key')){
       Object.assign(this.jobs.get(a.at(-1)),{object_key:a[0],width:a[2],height:a[3],bytes:a[4]});changes=1;
     }else if(sql.startsWith("UPDATE production_jobs SET status='failed'")){
@@ -55,7 +56,7 @@ class Store {
     const previous=this.batchTail||Promise.resolve();let unlock;
     this.batchTail=new Promise(resolve=>{unlock=resolve});
     await previous;
-    try{const result=[];for(const s of statements)result.push(await s.run());return result}
+    try{return await Promise.all(statements.map(s=>s.run()))}
     finally{unlock()}
   }
 }
@@ -96,7 +97,12 @@ test('a three-preview unresolved backlog stops generation before spending',async
   assert.equal(e.calls.length,0);assert.equal(e.DB.days.size,0);
 });
 test('concurrent triggers claim only one active job',async()=>{
-  const e=context();const r=await Promise.all(Array.from({length:4},()=>runProductionTick(e,{now:NOW})));
+  const e=context(),normal=e.AI.run;let release;
+  const gate=new Promise(resolve=>{release=resolve});
+  e.AI.run=async(model,body)=>{if(model.includes('glm'))await gate;return normal(model,body)};
+  const pending=Promise.all(Array.from({length:4},()=>runProductionTick(e,{now:NOW})));
+  await new Promise(resolve=>setImmediate(resolve));release();
+  const r=await pending;
   assert.equal(r.filter(x=>x.status==='needs_resolution').length,1);
   assert.equal(e.calls.length,3);assert.equal(e.DB.days.get('2026-11-16').reserved_neurons,JOB_RESERVATION);
 });
@@ -240,4 +246,18 @@ test('generation constraints are appended within provider bounds and selected so
   const e=context();await runProductionTick(e,{now:NOW});
   const job=[...e.DB.jobs.values()][0];assert.deepEqual(job.sources,['S1']);
   assert.match(job.qa.production_brief.prompt,/No writing/);
+});
+
+test('invalid planner JSON produces a sanitized explicit error before image spending',async()=>{
+  const e=context();e.AI.run=async()=>({choices:[{finish_reason:'stop',message:{content:'PRIVATE invalid JSON'}}]});
+  const out=await runProductionTick(e,{now:NOW});assert.equal(out.error_code,'model_json_invalid');
+  assert.equal(out.error_stage,'brief');assert.equal(e.stored.size,0);
+  const job=[...e.DB.jobs.values()][0];assert.equal(job.brief_diagnostics.brief_output_diagnostics.finish_reason,'stop');
+  assert.doesNotMatch(JSON.stringify(job),/PRIVATE/);
+});
+test('planner requests provider JSON mode and database/adapter failures have fixed codes',async()=>{
+  const e=context();await runProductionTick(e,{now:NOW});
+  assert.deepEqual(e.calls[0].input.response_format,{type:'json_object'});
+  assert.equal(classifyProductionError(Error('D1_ERROR: private query')).code,'production_database_error');
+  assert.equal(classifyProductionError(new TypeError('private details')).code,'production_adapter_contract_error');
 });
