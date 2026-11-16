@@ -3,7 +3,8 @@ export const IMAGE_MODEL="@cf/black-forest-labs/flux-1-schnell";
 export const VISION_MODEL="@cf/google/gemma-4-26b-a4b-it";
 const PLAN_MODEL="@cf/zai-org/glm-4.7-flash";
 export const DAILY_RESERVATION=8000, JOB_RESERVATION=512, MAX_IMAGE_BYTES=2_000_000;
-export const CAPTION_PROMPT='Inspect the supplied generated image, not the requested prompt. Return JSON only: title (5-70 characters no commas), description (10-600 characters), keywords (15-35 distinct relevant English terms ordered most important first), visual_pass (boolean), issues (array of visible defects or stock usability concerns). Check malformed geometry, inconsistent lighting, artifacts, gibberish, logos and watermarks. Describe ONLY visible contents. Never claim transparent background, 4K, 8K, camera-captured origin or verified buyer demand. Do not include AI-generated/generative AI terms in title/description/keywords; disclosure is a separate mandatory portal field. Model QA is only provisional.';
+export const CAPTION_PROMPT='Inspect actual pixels, not desired prompt contents. Return JSON only with title (5-70 characters no commas), description (10-600 characters), keywords (15-35 distinct relevant English terms ordered most important first), visual_pass (boolean), issues (array), text_present (boolean), visible_text (array of strings), logo_or_watermark_present (boolean), people_present (boolean), geometry_defects_present (boolean), matches_requested_concept (boolean), uncertain_identifications (array of strings). ANY readable text, lettering, label, slogan, sticker graphic, logo, watermark, people, malformed geometry or mismatch must make visual_pass FALSE; correctly spelled text is still forbidden in this pilot. Record visible writing in visible_text even if it looks decorative. Use conservative visible descriptions; do not guess food or plant species, organic status or health claims. List uncertain identifications. Never claim transparent background, 4K, 8K, camera-captured origin, sales or buyer demand. No AI-generated/generative AI terms in title/description/keywords; disclosure is a separate required portal field. Model QA is provisional, never stock acceptance.';
+const GENERATION_CONSTRAINTS=" Unbranded undecorated object. Plain uninterrupted studio background. No writing, letters, logos, slogans, sticker overlays or watermarks anywhere. No people.";
 const text=(v,max)=>typeof v==="string"?v.trim().slice(0,max):"";
 const safeLine=(v,max)=>typeof v==="string"&&v.length<=max&&!/[\x00-\x1f]/.test(v)?v.trim():"";
 // A small private KV spool avoids requiring R2/card signup for the bounded pilot.
@@ -61,7 +62,7 @@ export function validateBrief(value,sourceIds) {
   const prompt=safeLine(value?.prompt,1800),buyer=safeLine(value?.buyer,240);
   if(prompt.length<40||buyer.length<5||!Array.isArray(value?.source_ids)||!value.source_ids.length||
     value.source_ids.some(id=>!sourceIds.includes(id)))throw Error("production_brief_invalid");
-  return {prompt,buyer,source_ids:[...new Set(value.source_ids)]};
+  return {prompt:prompt+GENERATION_CONSTRAINTS,buyer,source_ids:[...new Set(value.source_ids)]};
 }
 export function validateCaption(value) {
   const title=safeLine(value?.title,70),description=safeLine(value?.description,1000);
@@ -73,9 +74,24 @@ export function validateCaption(value) {
     /\b(?:generative ai|ai.generated|transparent|4k|8k)\b/i.test(title+" "+description+" "+keywords.join(" ")))
     throw Error("image_metadata_invalid");
   if(typeof value?.visual_pass!=="boolean"||!Array.isArray(value?.issues))throw Error("visual_qa_invalid");
+  const names=["text_present","logo_or_watermark_present","people_present","geometry_defects_present","matches_requested_concept"];
+  if(names.some(k=>typeof value[k]!=="boolean")||!Array.isArray(value.visible_text)||
+    !Array.isArray(value.uncertain_identifications)||
+    [...value.visible_text,...value.uncertain_identifications,...value.issues].some(v=>typeof v!=="string"))throw Error("visual_qa_invalid");
+  const visible=value.visible_text.slice(0,12).map(v=>text(v,160)).filter(Boolean);
+  const uncertain=value.uncertain_identifications.slice(0,12).map(v=>text(v,160)).filter(Boolean);
+  const flags={text_present:value.text_present||visible.length>0||/\b(?:with (?:the )?(?:text|lettering|logo)|text (?:reads|says))\b/i.test(description),
+    logo_or_watermark_present:value.logo_or_watermark_present,people_present:value.people_present,
+    geometry_defects_present:value.geometry_defects_present,matches_requested_concept:value.matches_requested_concept};
+  const issues=value.issues.slice(0,12).map(v=>text(v,160)).filter(Boolean);
+  for(const key of ["text_present","logo_or_watermark_present","people_present","geometry_defects_present"])
+    if(flags[key])issues.push(key);
+  if(!flags.matches_requested_concept)issues.push("requested_concept_mismatch");
+  if(uncertain.length)issues.push("uncertain_subject_identification");
   return {title,description,keywords,ai_generated:true,targets:["adobe"],categories:{},
     illustration:true,metadata_status:"draft_requires_category_and_rights_review",
-    visual_pass:value.visual_pass,issues:value.issues.slice(0,12).map(v=>text(v,160))};
+    model_visual_pass:value.visual_pass,visual_pass:value.visual_pass&&issues.length===0,
+    visual_flags:flags,visible_text:visible,uncertain_identifications:uncertain,issues:[...new Set(issues)]};
 }
 export function jpegDimensions(bytes) {
   if(!(bytes instanceof Uint8Array)||bytes.length<4||bytes[0]!==255||bytes[1]!==216)throw Error("invalid_generated_jpeg");
@@ -202,6 +218,8 @@ export async function runProductionTick(env,options={}) {
       {role:"user",content:JSON.stringify({research_hypothesis:report.ai_interpretation_unverified.slice(0,4000),sources,variation_id:id}).slice(0,12000)}
     ],max_completion_tokens:600,chat_template_kwargs:{enable_thinking:false}});
     const brief=validateBrief(parseModelJson(reply),sources.map(s=>s.id));
+    await env.DB.prepare("UPDATE production_jobs SET qa_json=?,source_ids_json=? WHERE id=? AND status='running'")
+      .bind(JSON.stringify({production_brief:brief}),JSON.stringify(brief.source_ids),id).run();
     stage="generation";
     const generated=await env.AI.run(IMAGE_MODEL,{prompt:brief.prompt,steps:4});
     const {bytes,width,height}=decodeGeneratedImage(generated);
@@ -236,7 +254,10 @@ export async function runProductionTick(env,options={}) {
       {type:"image_url",image_url:{url:"data:image/jpeg;base64,"+(upscaled?base64Bytes(finalImage.bytes):generated.image)}}
     ]}],max_completion_tokens:650,chat_template_kwargs:{enable_thinking:false},response_format:{type:"json_object"}});
     const metadata=validateCaption(parseModelJson(caption));
-    const qa={visual_pass:metadata.visual_pass,issues:metadata.issues,review_status:"automated_screen_only",
+    const qa={visual_pass:metadata.visual_pass,model_visual_pass:metadata.model_visual_pass,
+      visual_flags:metadata.visual_flags,visible_text:metadata.visible_text,
+      uncertain_identifications:metadata.uncertain_identifications,production_brief:brief,
+      issues:metadata.issues,review_status:"automated_screen_only",
       resolution_ok:finalImage.width*finalImage.height>=4_000_000,technical_check:"jpeg_header_dimensions_only",ai_disclosure_required:true,rights_review_required:true,
       transparent_background:false,upscaled,upscale_method:upscaled?"images_esrgan_requested_not_independently_verified":null,submission_status:"not_submitted",transfer_status:"not_transferred"};
     stage="persist";

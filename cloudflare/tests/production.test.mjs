@@ -8,7 +8,7 @@ const NOW=()=>new Date('2026-11-16T08:00:00Z');
 function header(w=1024,h=1024){return Uint8Array.from([255,216,255,192,0,11,8,h>>8,h&255,w>>8,w&255,1,1,17,0,255,217])}
 const b64=bytes=>btoa(String.fromCharCode(...bytes));
 const caption={title:'Peach picture frame on a studio background',description:'A peach-colored empty frame on a plain warm background.',
-  keywords:['frame','picture frame','peach','mockup','background','empty','studio','display'],visual_pass:true,issues:[]};
+  keywords:['frame','picture frame','peach','mockup','background','empty','studio','display'],visual_pass:true,issues:[],text_present:false,visible_text:[],logo_or_watermark_present:false,people_present:false,geometry_defects_present:false,matches_requested_concept:true,uncertain_identifications:[]};
 const brief={prompt:'One realistic peach picture frame on a clean studio background with natural soft lighting.',buyer:'Graphic designers preparing layouts',source_ids:['S1']};
 const research={source_documents:[{id:'S1',title:'Adobe components'},{id:'S2',title:'Adobe trends'}],ai_interpretation_unverified:'Synthetic test hypothesis, not demand.'};
 class Store {
@@ -37,6 +37,8 @@ class Store {
       if(this.lastChanges===1){this.jobs.set(a[0],{id:a[0],day:a[1],status:'running'});changes=1}
     }else if(sql.startsWith('UPDATE production_days SET paused_until')){
       Object.assign(this.days.get(a[2]),{paused_until:a[0],pause_reason:a[1]});changes=1;
+    }else if(sql.startsWith('UPDATE production_jobs SET qa_json')){
+      Object.assign(this.jobs.get(a[2]),{brief:JSON.parse(a[0]),sources:JSON.parse(a[1])});changes=1;
     }else if(sql.startsWith('UPDATE production_jobs SET object_key')){
       Object.assign(this.jobs.get(a.at(-1)),{object_key:a[0],width:a[2],height:a[3],bytes:a[4]});changes=1;
     }else if(sql.startsWith("UPDATE production_jobs SET status='failed'")){
@@ -217,4 +219,25 @@ test('metadata sidecar remains authenticated, private and explicitly ineligible 
   assert.match(response.headers.get('content-disposition'),/\.jpg\.json/);
   const body=await response.json();assert.equal(body._kitwise.transfer_eligible,false);
   assert.equal(body.ai_generated,true);assert.deepEqual(body.targets,['adobe']);
+});
+
+test('unrequested text overrides a model pass, including correctly spelled decorative lettering',()=>{
+  const out=validateCaption({...caption,visual_pass:true,text_present:false,visible_text:['Good Grain']});
+  assert.equal(out.model_visual_pass,true);assert.equal(out.visual_pass,false);
+  assert.ok(out.issues.includes('text_present'));
+  const described=validateCaption({...caption,description:'A bowl with the text Good Grain on a sticker.',text_present:false,visible_text:[]});
+  assert.equal(described.visual_pass,false);
+});
+test('missing visual flags, uncertain subject names and concept mismatches cannot become a pass',()=>{
+  const missing={...caption};delete missing.text_present;
+  assert.throws(()=>validateCaption(missing),/visual_qa_invalid/);
+  assert.equal(validateCaption({...caption,uncertain_identifications:['red seeds']}).visual_pass,false);
+  assert.equal(validateCaption({...caption,matches_requested_concept:false}).visual_pass,false);
+});
+test('generation constraints are appended within provider bounds and selected source IDs are retained',async()=>{
+  const b=validateBrief({...brief,prompt:'x'.repeat(1800)},['S1']);
+  assert.ok(b.prompt.length<=2048);assert.match(b.prompt,/No writing/);
+  const e=context();await runProductionTick(e,{now:NOW});
+  const job=[...e.DB.jobs.values()][0];assert.deepEqual(job.sources,['S1']);
+  assert.match(job.qa.production_brief.prompt,/No writing/);
 });
