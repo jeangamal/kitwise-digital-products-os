@@ -12,13 +12,20 @@ if not re.fullmatch(r'[a-fA-F0-9]{64}', key):
     print(json.dumps({'status': 'blocked', 'reason': 'existing_chairman_actions_secret_unavailable'}))
     sys.exit(1)
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+opener = urllib.request.build_opener(NoRedirect())
+
 
 def request(path, method='GET', authenticated=True):
     headers = {'authorization': 'Bearer ' + key} if authenticated else {}
     req = urllib.request.Request(BASE + path, headers=headers, method=method,
                                  data=b'' if method == 'POST' else None)
     try:
-        with urllib.request.urlopen(req, timeout=180) as response:
+        with opener.open(req, timeout=180) as response:
             return response.status, json.loads(response.read(100_000))
     except urllib.error.HTTPError as error:
         # Never print the body, headers, request, exception, or access key.
