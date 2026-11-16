@@ -2,6 +2,9 @@
 
 Kitwise is an autonomous digital-products business operating-system project. The company control plane is under active development; it is **not yet** a fully functioning multi-agent business.
 
+Engineering handover: [repository instructions](AGENTS.md) and [current project status](docs/company-os/PROJECT_STATUS.md), including research repair verification and deployment gates.
+Business operating context: [reconciled master/handover summary](docs/company-os/BUSINESS_CONTEXT.md). Research release: [review, live verification and rollback checklist](docs/company-os/RESEARCH_RELEASE_CHECKLIST.md).
+
 - **Company OS v0.1:** role permissions, task ledger, evidence tracking, basic CEO-to-Research workflow. See [Charter](docs/company-os/CHARTER.md) and [Architecture](docs/company-os/ARCHITECTURE.md).
 - **Microstock Research v0.6:** curated public Shutterstock and Adobe contributor guidance using existing Tavily; rejects generic stock catalogs, coupons, unrelated news and stale trends before Workers AI. Reports relevance checks instead of inventing competitive demand. An independent D1 ledger preserves historical v0.5 evidence. See [Research quality rules](docs/company-os/RESEARCH_QUALITY_GATE.md). The latest code requires manual deployment and a verified live run.
 - **Chairman Dashboard v0.2:** private source-backed research reports, department status and protected on-demand research. See [Chairman Dashboard setup](docs/company-os/CHAIRMAN_DASHBOARD.md). The dashboard code requires a manual deployment and separate chairman key to unlock.
