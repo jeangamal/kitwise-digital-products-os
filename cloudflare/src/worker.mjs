@@ -187,10 +187,18 @@ export default {
         try{return privateJson(await runProductionTick(env))}
         catch(_){return privateJson({error:"production_runtime_unavailable"},503)}
       }
-      const assetPath=url.pathname.match(/^\/api\/production\/assets\/([a-f\d-]{36})\/image$/i);
+      const assetPath=url.pathname.match(/^\/api\/production\/assets\/([a-f\d-]{36})\/(image|metadata)$/i);
       if(assetPath&&request.method==="GET") {
         try {
-          const row=await env.DB.prepare("SELECT object_key,upscaled_object_key FROM production_jobs WHERE id=?").bind(assetPath[1]).first();
+          const row=await env.DB.prepare("SELECT object_key,upscaled_object_key,metadata_json,qa_json,status FROM production_jobs WHERE id=?").bind(assetPath[1]).first();
+          if(assetPath[2]==="metadata") {
+            if(!row?.metadata_json)return privateJson({error:"metadata_unavailable"},404);
+            return new Response(JSON.stringify({...JSON.parse(row.metadata_json),_kitwise:{status:row.status,
+              transfer_eligible:false,qa:row.qa_json?JSON.parse(row.qa_json):null}},null,2),{
+              headers:securityHeaders({"content-type":"application/json; charset=utf-8",
+                "content-disposition":"attachment; filename=\""+assetPath[1]+".jpg.json\""})
+            });
+          }
           const store=assetStore(env);
           if(!row?.object_key||!store?.get)return privateJson({error:"asset_unavailable"},404);
           const image=await store.get(row.upscaled_object_key||row.object_key);

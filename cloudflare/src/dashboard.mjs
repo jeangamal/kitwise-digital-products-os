@@ -263,6 +263,17 @@ function renderProduction(){
     line.appendChild(label);
     if(job.metadata){
       var metadata=document.createElement("p");metadata.textContent=job.metadata.description+" Keywords: "+(job.metadata.keywords||[]).join(", ");line.appendChild(metadata);
+      var sidecar=document.createElement("button");sidecar.type="button";sidecar.className="secondary-btn";sidecar.textContent="Download draft metadata";
+      sidecar.addEventListener("click",async function(){
+        if(!key)return;sidecar.disabled=true;
+        try{
+          var response=await fetch("/api/production/assets/"+encodeURIComponent(job.id)+"/metadata",{headers:{"Authorization":"Bearer "+key},cache:"no-store"});
+          if(!response.ok)throw Error("unavailable");
+          var content=await response.json(),url=URL.createObjectURL(new Blob([JSON.stringify(content,null,2)],{type:"application/json"}));assetUrls.push(url);
+          var link=document.createElement("a");link.href=url;link.download=job.id+".jpg.json";link.textContent="Save draft metadata";line.appendChild(link);link.click();
+        }catch(_){sidecar.textContent="Metadata unavailable; refresh and retry."}
+        finally{sidecar.disabled=false}
+      });line.appendChild(sidecar);
     }
     if(job.bytes){
       var view=document.createElement("button");view.type="button";view.className="secondary-btn";view.textContent="Download private preview";
