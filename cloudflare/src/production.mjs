@@ -102,7 +102,8 @@ export function decodeGeneratedImage(reply) {
   if(typeof reply?.image!=="string"||reply.image.length>Math.ceil(MAX_IMAGE_BYTES/3)*4)
     throw Error("generated_image_too_large_or_missing");
   let raw;try{raw=atob(reply.image)}catch(_){throw Error("invalid_generated_jpeg")}
-  const bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));
+  const bytes=typeof Uint8Array.fromBase64==="function"?Uint8Array.fromBase64(reply.image):
+    Uint8Array.from(raw,c=>c.charCodeAt(0));
   if(bytes.length>MAX_IMAGE_BYTES)throw Error("generated_image_too_large_or_missing");
   return {bytes,...jpegDimensions(bytes)};
 }
@@ -137,6 +138,7 @@ export async function upscaleImage(env,bytes,width,height) {
   return {bytes:result,...dims};
 }
 function base64Bytes(bytes) {
+  if(typeof bytes.toBase64==="function")return bytes.toBase64();
   const pieces=[];
   for(let i=0;i<bytes.length;i+=8192)pieces.push(String.fromCharCode(...bytes.subarray(i,i+8192)));
   return btoa(pieces.join(""));
@@ -145,7 +147,7 @@ function base64Bytes(bytes) {
 export async function productionOverview(env,now=new Date()) {
   const readiness=productionReadiness(env);
   try{
-    const pending=await env.DB.prepare("SELECT COUNT(*) count FROM production_jobs WHERE status IN ('needs_resolution','needs_review')").first();
+    const pending=await env.DB.prepare("SELECT COUNT(*) count FROM production_jobs WHERE status IN ('needs_resolution','needs_review') OR (status='failed' AND object_key IS NOT NULL)").first();
     const day=now.toISOString().slice(0,10);
     const budget=await env.DB.prepare("SELECT day,reserved_neurons,attempted_jobs,paused_until,pause_reason FROM production_days WHERE day=?").bind(day).first();
     const active=await env.DB.prepare("SELECT COUNT(*) count FROM production_jobs WHERE status IN ('running','uncertain')").first();
@@ -174,7 +176,7 @@ export async function runProductionTick(env,options={}) {
   const report=JSON.parse(run.report_json);
   const sources=(report.source_documents||[]).slice(0,12);
   if(sources.length<2||!report.ai_interpretation_unverified)return {status:"awaiting_research"};
-  const pending=await env.DB.prepare("SELECT COUNT(*) count FROM production_jobs WHERE status IN ('needs_resolution','needs_review')").first();
+  const pending=await env.DB.prepare("SELECT COUNT(*) count FROM production_jobs WHERE status IN ('needs_resolution','needs_review') OR (status='failed' AND object_key IS NOT NULL)").first();
   if(!pending||pending.count>=3)return {status:"blocked",blockers:["review_backlog_full"]};
   const id=crypto.randomUUID();
   await env.DB.prepare("INSERT OR IGNORE INTO production_days (day) VALUES (?)").bind(day).run();
