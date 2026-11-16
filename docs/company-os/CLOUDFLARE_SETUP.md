@@ -33,3 +33,37 @@
 ## Follow-on implementation
 
 After a verified live v0.3 run: add other marketplaces via authorized sources, compare exact market competitor formats and sales evidence, and enhance the existing private Chairman dashboard with approval gates and production operations. Review free-usage statistics before increasing research cadence.
+
+## Research AI failure diagnosis (November 2026 repair)
+
+GLM-4.7-Flash can exhaust the bounded completion budget on reasoning before
+producing final content. The repair sets `chat_template_kwargs.enable_thinking`
+to `false`, keeps `max_completion_tokens: 1250`, and never treats
+`reasoning_content` as a report. It rejects `finish_reason: length` even when a
+partial final answer exists. See [current verification and blockers](PROJECT_STATUS.md).
+
+Current research uses `curated_research_runs` and `curated_research_sources`.
+Older research/market/indexed ledgers are preserved historical modules. Inspect
+private diagnostics using the D1 Console:
+
+```sql
+SELECT day, status, document_count, error_code,
+       json_extract(report_json, '$.ai_diagnostics') AS ai_diagnostics
+FROM curated_research_runs ORDER BY day DESC LIMIT 5;
+```
+
+Diagnostics contain only fixed outcome codes, an allowlisted finish reason,
+final-text/reasoning presence flags and a validated HTTP status where available.
+`ai_output_truncated` means the model hit its output limit; `ai_empty_response`
+means no usable final text. Structured 401/403, 429 and 5xx errors are classified
+as auth, quota/rate-limit and provider failures; other SDK exceptions remain
+`ai_unavailable`. Raw errors and reasoning are never stored. Missing or
+insufficient source evidence skips AI and records `not_attempted`.
+
+The existing ledger permits one initial attempt plus **one retry after failure**
+per UTC day, shared by manual and cron triggers. Running/completed claims and a
+second failed attempt block further execution. Never clear a claim or erase
+history to force a run. This supersedes older wording claiming only one attempt.
+No migration, secret rotation, new service or quota increase is needed for the
+repair. Production deployment requires Chairman approval under the Charter;
+a direct API inference test is not verification of a deployed scheduled cycle.

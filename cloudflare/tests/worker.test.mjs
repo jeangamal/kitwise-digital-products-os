@@ -182,3 +182,54 @@ test("single editorial article is not enough for a source-backed production deci
   assert.equal(result.error_code,"insufficient_relevant_market_sources");
   assert.equal(calls,0);
 });
+
+test("GLM request disables thinking within the existing completion budget",async()=>{
+  const e=env();
+  e.AI={run:async(model,body)=>{
+    assert.equal(model,"@cf/zai-org/glm-4.7-flash");
+    assert.equal(body.max_completion_tokens,1250);
+    assert.deepEqual(body.chat_template_kwargs,{enable_thinking:false});
+    return {choices:[{finish_reason:"stop",message:{content:"Unverified guidance [S1]."}}]};
+  }};
+  assert.equal((await runResearchCycle(e,{fetchImpl:fakeFetch,now})).status,"completed");
+  assert.equal(e.DB.runs.get("2026-11-02").report.ai_diagnostics.outcome,"ok");
+});
+
+for(const [name,reply,expected] of [
+  ["reasoning consumes budget",{choices:[{finish_reason:"length",message:{content:null,reasoning_content:"PRIVATE REASONING"}}]},"ai_output_truncated"],
+  ["partial final output",{choices:[{finish_reason:"length",message:{content:"Partial [S1]"}}]},"ai_output_truncated"],
+  ["empty output",{choices:[{finish_reason:"stop",message:{content:" "}}]},"ai_empty_response"],
+  ["unknown response shape",{unexpected:"PRIVATE PROVIDER DATA"},"ai_empty_response"]
+])test(name+" fails safely and retains evidence",async()=>{
+  const e=env();e.AI={run:async()=>reply};
+  const result=await runResearchCycle(e,{fetchImpl:fakeFetch,now});
+  assert.equal(result.status,"needs_attention");assert.equal(result.error_code,expected);
+  assert.equal(e.DB.sources.size,2);
+  const report=e.DB.runs.get("2026-11-02").report;
+  assert.equal(report.ai_interpretation_unverified,null);
+  assert.equal(report.ai_diagnostics.outcome,expected);
+  assert.doesNotMatch(JSON.stringify(report),/PRIVATE/);
+});
+
+for(const [status,expected] of [[401,"ai_auth_error"],[403,"ai_auth_error"],[429,"ai_quota_or_rate_limit"],[503,"ai_provider_unavailable"],[undefined,"ai_unavailable"]])
+test("sanitized AI provider failure "+status,async()=>{
+  const e=env();let calls=0;
+  e.AI={run:async()=>{calls++;throw Object.assign(new Error("secret-token PRIVATE URL https://private.example"),{status});}};
+  const result=await runResearchCycle(e,{fetchImpl:fakeFetch,now});
+  assert.equal(result.error_code,expected);
+  assert.equal(e.DB.sources.size,2);
+  const report=e.DB.runs.get("2026-11-02").report;
+  assert.doesNotMatch(JSON.stringify(report),/secret-token|PRIVATE|private.example/);
+  await runResearchCycle(e,{fetchImpl:fakeFetch,now});
+  assert.equal((await runResearchCycle(e,{fetchImpl:fakeFetch,now})).status,"already_claimed");
+  assert.equal(calls,2);
+});
+
+test("concurrent triggers share one claim and do not call AI twice",async()=>{
+  const e=env();let calls=0;
+  e.AI={run:async()=>{calls++;return {response:"Guidance [S1], not sales."};}};
+  const results=await Promise.all(Array.from({length:5},()=>runResearchCycle(e,{fetchImpl:fakeFetch,now})));
+  assert.equal(results.filter(r=>r.status==="completed").length,1);
+  assert.equal(results.filter(r=>r.status==="already_claimed").length,4);
+  assert.equal(calls,1);
+});
