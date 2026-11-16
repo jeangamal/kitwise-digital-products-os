@@ -47,3 +47,7 @@ The owner requested implementation, testing and daily free-tier automation. This
 Account configuration: owner explicitly confirmed both Workers Free and Images Free. The dedicated KV namespace is `kitwise-production-assets`; its public identifier is included in the deployment template so future manual releases preserve the spool binding. Pilot flags in that template reflect these owner confirmations and the successful Gemma probe. No existing secret values were retrieved or changed.
 
 Uploader readiness check: manual `check-connections` run 43785061464 completed, but setup/dependency/actual connection steps were skipped by the readiness gate. This does not establish valid contributor connections or any transfer. Do not describe a green wrapper job as a successful account connection.
+
+## Controlled live test
+
+The manual `company-os-production-check.yml` workflow runs only on main. It uses the already configured `KITWISE_CHAIRMAN_KEY` Actions secret, checks unauthenticated denial and the private overview, and invokes one synchronous bounded production test. It prints only fixed statuses, stages and counts; never keys, image bytes, metadata, prompts or provider bodies. No secrets are available to PR tests. If that existing secret is absent or the environment is blocked at Cloudflare's edge, the test reports the blocker instead of changing authentication. The actual business processing remains in the Cloudflare Worker; GitHub only drives the test.
